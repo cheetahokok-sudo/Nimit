@@ -9,7 +9,8 @@
 | Path | คำอธิบาย |
 |---|---|
 | `app/` | Flutter app (Android / iOS / Web) |
-| `docs/` | เอกสารวิจัยตลาดและ UI board (prelim research) |
+
+เอกสารวิจัยตลาด กลยุทธ์ และ UI board อยู่ใน repo แยกต่างหาก (private): [`cheetahokok-sudo/Nimit-docs`](https://github.com/cheetahokok-sudo/Nimit-docs)
 
 ## หลักการสำคัญจากงานวิจัย (Product guardrails)
 
@@ -44,4 +45,4 @@ flutter test
 
 ## สถานะ (Status)
 
-Scaffold v0.1 — ครบ 8 หน้าจอตาม `docs/nimit_flutter_v2_ui_board.png` ด้วย mock data; dream journal, เลขที่บันทึก, และงบความบันเทิงเก็บลงเครื่องจริง ยังไม่เชื่อม API ผลหวย/AI วิเคราะห์ฝัน/การแชร์
+Scaffold v0.1 — ครบ 8 หน้าจอตาม UI board v2 (ดู repo `Nimit-docs`) ด้วย mock data; dream journal, เลขที่บันทึก, และงบความบันเทิงเก็บลงเครื่องจริง ยังไม่เชื่อม API ผลหวย/AI วิเคราะห์ฝัน/การแชร์

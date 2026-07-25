@@ -5,3 +5,6 @@ Thumbs.db
 # Claude
 .claude/
 
+# Research & design documents live in the private Nimit-docs repo
+docs/
+
