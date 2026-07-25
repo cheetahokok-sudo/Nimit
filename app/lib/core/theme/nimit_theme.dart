@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 
-/// Design tokens lifted from the v2 UI board (docs/nimit_flutter_v2_ui_board.png).
+/// Design tokens lifted from the v2 UI board (see the private Nimit-docs repo).
 abstract final class NimitColors {
   // Base
   static const cream = Color(0xFFF6F0E4); // page background
