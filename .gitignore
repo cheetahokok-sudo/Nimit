@@ -1,4 +1,4 @@
-﻿# OS
+# OS
 Thumbs.db
 .DS_Store
 
@@ -8,3 +8,29 @@ Thumbs.db
 # Research & design documents live in the private Nimit-docs repo
 docs/
 
+# ---------------------------------------------------------------------------
+# THIS REPOSITORY IS PUBLIC. Git history is effectively permanent — a secret or
+# a copyrighted corpus committed here cannot be un-published by a later commit.
+# ---------------------------------------------------------------------------
+
+# Secrets. The Supabase anon key is public by design and lives in Actions
+# variables; the service_role key bypasses RLS entirely and must never land here.
+.env
+.env.*
+!.env.example
+**/.env
+supabase/.env
+
+# Supabase CLI local state
+supabase/.branches/
+supabase/.temp/
+
+# Database dumps may contain the editorial schema and user personal data
+*.dump
+*.sql.gz
+*.sql.bak
+
+# Source corpus: copyrighted scans, transcriptions and import payloads.
+# The import *scripts* belong in this repo; the content does not.
+corpus/
+content-payloads/

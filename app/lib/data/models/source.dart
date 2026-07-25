@@ -13,4 +13,18 @@ enum SourceTier {
   final String code;
   final String titleTh;
   final String descriptionTh;
+
+  /// Resolves a tier code arriving from the backend or from stored JSON.
+  ///
+  /// Fails closed to [d] ("ยังไม่ยืนยัน"). An unrecognised or corrupt code must
+  /// never be rendered with a higher-trust badge than the content has earned —
+  /// labelling unverified material as a historical original is the exact trust
+  /// failure the tier system exists to prevent.
+  static SourceTier fromCode(String? code) {
+    final normalized = code?.trim().toUpperCase();
+    return values.firstWhere(
+      (tier) => tier.code == normalized,
+      orElse: () => SourceTier.d,
+    );
+  }
 }
