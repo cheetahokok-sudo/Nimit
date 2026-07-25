@@ -17,6 +17,7 @@ class NimitAppBar extends StatelessWidget implements PreferredSizeWidget {
       toolbarHeight: 64,
       titleSpacing: 20,
       title: Row(
+        mainAxisSize: MainAxisSize.min,
         children: [
           Container(
             width: 38,
@@ -29,17 +30,23 @@ class NimitAppBar extends StatelessWidget implements PreferredSizeWidget {
                 color: NimitColors.gold, size: 20),
           ),
           const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Text('นิมิต',
-                  style: textTheme.titleMedium!
-                      .copyWith(fontWeight: FontWeight.w800)),
-              Text('ฝัน • ดวง • ความเชื่อ',
-                  style: textTheme.labelSmall!
-                      .copyWith(color: NimitColors.inkSoft)),
-            ],
+          Flexible(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Text('นิมิต',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.titleMedium!
+                        .copyWith(fontWeight: FontWeight.w800)),
+                Text('ฝัน • ดวง • ความเชื่อ',
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: textTheme.labelSmall!
+                        .copyWith(color: NimitColors.inkSoft)),
+              ],
+            ),
           ),
         ],
       ),

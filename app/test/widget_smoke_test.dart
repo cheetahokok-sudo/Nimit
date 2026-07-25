@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
@@ -34,6 +35,18 @@ void main() {
     for (final label in ['หน้าแรก', 'ความฝัน', 'กระแส', 'ดวง', 'ตรวจหวย']) {
       expect(find.text(label), findsWidgets);
     }
+  });
+
+  testWidgets('renders without overflow at narrow phone width',
+      (tester) async {
+    tester.view.physicalSize = const Size(375, 812);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await pumpApp(tester);
+    expect(find.text('นิมิต'), findsOneWidget);
+    // Any RenderFlex overflow would surface as a FlutterError here.
+    expect(tester.takeException(), isNull);
   });
 
   testWidgets('all tabs navigate', (tester) async {
