@@ -9,6 +9,34 @@ import '../repositories/repositories.dart';
 /// On-device persistence via shared_preferences (JSON lists).
 /// Works on Android/iOS/Web; swap for Supabase later behind the same
 /// repository interfaces.
+///
+/// Corrupt data policy: a payload that fails to decode is treated as absent
+/// rather than thrown. Stored JSON can be damaged outside our control
+/// (interrupted writes, users editing web localStorage, migration bugs), and
+/// an exception out of `all()` would permanently brick that screen — every
+/// load re-throws until the user clears app data. Losing a broken cache is
+/// the better failure. Entries that individually fail to parse are skipped so
+/// one bad record does not take the rest of the journal with it.
+
+List<T> _decodeListOrEmpty<T>(
+    String? raw, T Function(Map<String, dynamic>) fromJson) {
+  if (raw == null) return [];
+  try {
+    final decoded = jsonDecode(raw);
+    if (decoded is! List) return [];
+    final out = <T>[];
+    for (final e in decoded) {
+      try {
+        out.add(fromJson(e as Map<String, dynamic>));
+      } catch (_) {
+        // Skip the damaged entry, keep the rest.
+      }
+    }
+    return out;
+  } catch (_) {
+    return [];
+  }
+}
 
 class LocalJournalRepository implements JournalRepository {
   LocalJournalRepository(this._prefs);
@@ -18,11 +46,7 @@ class LocalJournalRepository implements JournalRepository {
 
   @override
   Future<List<DreamEntry>> all() async {
-    final raw = _prefs.getString(_key);
-    if (raw == null) return [];
-    final list = (jsonDecode(raw) as List<dynamic>)
-        .map((e) => DreamEntry.fromJson(e as Map<String, dynamic>))
-        .toList();
+    final list = _decodeListOrEmpty(_prefs.getString(_key), DreamEntry.fromJson);
     list.sort((a, b) => b.createdAt.compareTo(a.createdAt));
     return list;
   }
@@ -53,11 +77,7 @@ class LocalSavedTicketsRepository implements SavedTicketsRepository {
 
   @override
   Future<List<SavedTicket>> all() async {
-    final raw = _prefs.getString(_key);
-    if (raw == null) return [];
-    return (jsonDecode(raw) as List<dynamic>)
-        .map((e) => SavedTicket.fromJson(e as Map<String, dynamic>))
-        .toList();
+    return _decodeListOrEmpty(_prefs.getString(_key), SavedTicket.fromJson);
   }
 
   @override
@@ -84,11 +104,23 @@ class LocalBudgetRepository implements BudgetRepository {
   static const _key = 'nimit.budget.v1';
   final SharedPreferences _prefs;
 
+  // A fresh install has spent NOTHING. The previous default of ฿160 was a
+  // demo figure from the UI board leaking into reality — for a
+  // responsible-use feature, showing money as already spent is a factual
+  // mis-statement to a brand-new user.
+  static const _fresh = BudgetState(spent: 0, limit: 500);
+
   @override
   Future<BudgetState> load() async {
     final raw = _prefs.getString(_key);
-    if (raw == null) return const BudgetState(spent: 160, limit: 500);
-    return BudgetState.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    if (raw == null) return _fresh;
+    try {
+      return BudgetState.fromJson(jsonDecode(raw) as Map<String, dynamic>);
+    } catch (_) {
+      // Damaged budget payload: fall back to defaults rather than bricking
+      // the lottery screen. The user re-enters two numbers; nothing else lost.
+      return _fresh;
+    }
   }
 
   @override

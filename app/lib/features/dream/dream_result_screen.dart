@@ -10,9 +10,7 @@ import '../../data/models/dream.dart';
 import '../../data/providers.dart';
 
 class DreamResultScreen extends ConsumerStatefulWidget {
-  const DreamResultScreen({super.key, this.analysis});
-
-  final DreamAnalysis? analysis;
+  const DreamResultScreen({super.key});
 
   @override
   ConsumerState<DreamResultScreen> createState() => _DreamResultScreenState();
@@ -21,14 +19,19 @@ class DreamResultScreen extends ConsumerStatefulWidget {
 class _DreamResultScreenState extends ConsumerState<DreamResultScreen> {
   bool _saved = false;
 
-  Future<void> _saveToJournal(DreamAnalysis analysis) async {
+  Future<void> _saveToJournal(DreamSession session) async {
+    // Persist the user's actual dream and the analysis snapshot — the journal
+    // freezes what the user wrote and what they were shown, not a headline.
     await ref.read(journalProvider.notifier).save(
           DreamEntry(
             id: DateTime.now().millisecondsSinceEpoch.toString(),
-            text: analysis.headlineTh,
+            text: session.text,
             createdAt: DateTime.now(),
-            headlineTh: analysis.headlineTh,
-            numbers: analysis.numbers,
+            feelingTh: session.feelingTh,
+            timeOfNightTh: session.timeOfNightTh,
+            headlineTh: session.analysis.headlineTh,
+            numbers: session.analysis.numbers,
+            analysis: session.analysis,
           ),
         );
     if (mounted) setState(() => _saved = true);
@@ -37,10 +40,11 @@ class _DreamResultScreenState extends ConsumerState<DreamResultScreen> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    final analysis = widget.analysis;
+    final session = ref.watch(dreamSessionProvider);
+    final analysis = session?.analysis;
 
-    if (analysis == null) {
-      // Deep link without state — send back to entry.
+    if (session == null || analysis == null) {
+      // Deep link or web refresh without a session — send back to entry.
       return Center(
         child: Padding(
           padding: const EdgeInsets.all(24),
@@ -105,7 +109,7 @@ class _DreamResultScreenState extends ConsumerState<DreamResultScreen> {
                       : TextButton.icon(
                           style: TextButton.styleFrom(
                               foregroundColor: NimitColors.gold),
-                          onPressed: () => _saveToJournal(analysis),
+                          onPressed: () => _saveToJournal(session),
                           icon: const Icon(Icons.bookmark_add_outlined,
                               size: 18),
                           label: const Text('บันทึก'),
@@ -161,7 +165,7 @@ class _DreamResultScreenState extends ConsumerState<DreamResultScreen> {
             Expanded(
               flex: 3,
               child: FilledButton(
-                onPressed: () => context.go('/dream/share', extra: analysis),
+                onPressed: () => context.go('/dream/share'),
                 child: const Text('สร้างการ์ดแชร์'),
               ),
             ),

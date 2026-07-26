@@ -1,0 +1,87 @@
+name: Verify database schema
+
+# The rights firewall is enforced in SQL, so SQL changes need the same CI gate
+# the Flutter code already has. This applies every migration and seed to a
+# fresh PostgreSQL and runs the full assertion suite — twice: once against the
+# draft state, then again after publishing, because the two states exercise
+# different paths (draft exclusion vs. visible content) and a regression in
+# either would otherwise reach production unnoticed.
+
+on:
+  push:
+    branches: [main]
+    paths: ['supabase/**']
+  pull_request:
+    paths: ['supabase/**']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17-alpine
+        env:
+          POSTGRES_PASSWORD: ci
+          POSTGRES_DB: nimit_ci
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd "pg_isready -U postgres"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+
+    env:
+      PGURL: postgresql://postgres:ci@localhost:5432/nimit_ci
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Apply migrations
+        run: |
+          for f in supabase/migrations/*.sql; do
+            echo "== $f"
+            psql "$PGURL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+
+      - name: Apply seeds
+        run: |
+          for f in supabase/seed.sql \
+                   supabase/seeds/sources_v1.sql \
+                   supabase/seeds/sources_v2_research.sql \
+                   supabase/seeds/sources_v3_legal_corrections.sql \
+                   supabase/seeds/dream_symbols_v1.sql; do
+            echo "== $f"
+            psql "$PGURL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+
+      - name: Seeds are idempotent (second run must not error or duplicate)
+        run: |
+          for f in supabase/seeds/sources_v1.sql \
+                   supabase/seeds/sources_v2_research.sql \
+                   supabase/seeds/dream_symbols_v1.sql; do
+            psql "$PGURL" -v ON_ERROR_STOP=1 -q -f "$f"
+          done
+          psql "$PGURL" -v ON_ERROR_STOP=1 -t -c "
+            do \$\$
+            declare n int;
+            begin
+              select count(*) into n from (
+                select edition_id, registry_ref from editorial.acquisition
+                group by 1,2 having count(*) > 1) d;
+              if n > 0 then
+                raise exception 'seed re-run duplicated % acquisition pairs', n;
+              end if;
+            end \$\$;"
+
+      - name: Assertion suite (draft state)
+        run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/rights_firewall_test.sql
+
+      - name: Publish safe layer
+        run: psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/publish_v1.sql
+
+      - name: Assertion suite (published state)
+        run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/rights_firewall_test.sql

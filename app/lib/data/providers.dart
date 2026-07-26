@@ -82,6 +82,44 @@ final sourceLibraryCountProvider = FutureProvider<int>(
   (ref) => ref.watch(sourcesRepositoryProvider).libraryCount(),
 );
 
+// ---- Current dream session ----
+
+/// Everything belonging to the dream currently being analyzed.
+///
+/// This exists because of a data-loss bug: the analysis used to travel to the
+/// result screen only as a go_router `extra`, so the ORIGINAL dream text,
+/// feeling and time-of-night never arrived at the save path at all — the
+/// journal stored the headline as the "dream" and dropped the analysis
+/// snapshot entirely, quietly destroying the only user-generated data the app
+/// collects. Holding the whole session in a provider fixes the save path and
+/// also survives tab switches and the home-screen route to the share card,
+/// where `extra` does not.
+class DreamSession {
+  const DreamSession({
+    required this.text,
+    required this.analysis,
+    this.feelingTh,
+    this.timeOfNightTh,
+  });
+
+  final String text;
+  final DreamAnalysis analysis;
+  final String? feelingTh;
+  final String? timeOfNightTh;
+}
+
+class DreamSessionNotifier extends Notifier<DreamSession?> {
+  @override
+  DreamSession? build() => null;
+
+  void start(DreamSession session) => state = session;
+  void clear() => state = null;
+}
+
+final dreamSessionProvider =
+    NotifierProvider<DreamSessionNotifier, DreamSession?>(
+        DreamSessionNotifier.new);
+
 // ---- Persisted user state ----
 
 class JournalNotifier extends AsyncNotifier<List<DreamEntry>> {

@@ -1,6 +1,5 @@
 import 'package:go_router/go_router.dart';
 
-import '../../data/models/dream.dart';
 import '../../features/dream/dream_entry_screen.dart';
 import '../../features/dream/dream_result_screen.dart';
 import '../../features/fortune/fortune_screen.dart';
@@ -29,17 +28,16 @@ final appRouter = GoRouter(
             path: '/dream',
             builder: (context, state) => const DreamEntryScreen(),
             routes: [
+              // Dream state travels via dreamSessionProvider, not `extra`:
+              // extras die on tab switches and web refreshes, which is how the
+              // save path once lost the user's actual dream text.
               GoRoute(
                 path: 'result',
-                builder: (context, state) => DreamResultScreen(
-                  analysis: state.extra as DreamAnalysis?,
-                ),
+                builder: (context, state) => const DreamResultScreen(),
               ),
               GoRoute(
                 path: 'share',
-                builder: (context, state) => ShareCardScreen(
-                  analysis: state.extra as DreamAnalysis?,
-                ),
+                builder: (context, state) => const ShareCardScreen(),
               ),
             ],
           ),

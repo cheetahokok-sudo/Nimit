@@ -46,7 +46,9 @@ class _LotteryScreenState extends ConsumerState<LotteryScreen> {
     final limitController =
         TextEditingController(text: budget.limit.toString());
     final spendController = TextEditingController();
-    final result = await showDialog<({int? limit, int? spend})>(
+    ({int? limit, int? spend})? result;
+    try {
+      result = await showDialog<({int? limit, int? spend})>(
       context: context,
       builder: (context) => AlertDialog(
         title: const Text('งบความบันเทิงเดือนนี้'),
@@ -84,7 +86,13 @@ class _LotteryScreenState extends ConsumerState<LotteryScreen> {
           ),
         ],
       ),
-    );
+      );
+    } finally {
+      // Created per invocation, so they must die per invocation — otherwise
+      // every dialog open leaks two ChangeNotifiers.
+      limitController.dispose();
+      spendController.dispose();
+    }
     if (result == null) return;
     final notifier = ref.read(budgetProvider.notifier);
     if (result.limit != null && result.limit! > 0) {

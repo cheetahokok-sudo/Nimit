@@ -358,6 +358,58 @@ select pg_temp.expect_eq(
       and routine_name = 'search_symbols') > 0, true,
   'anon CAN execute api.search_symbols');
 
+-- ---------------------------------------------------------------------------
+select pg_temp.section('8. Read path actually executes');
+-- ---------------------------------------------------------------------------
+-- get_symbol shipped declared STABLE while inserting into the access log,
+-- which PostgreSQL rejects at runtime (0A000) — so the flagship read function
+-- failed for every legitimate caller. It survived review because the suite
+-- only ever asserted on its ACLs and every live probe was rejected at the
+-- permission gate before the body ran. Lesson encoded here: a function whose
+-- only exercised path is "denied" is untested where it matters. EXECUTE it.
+
+select pg_temp.expect_eq(
+  (select (api.get_symbol('snake') ->> 'slug')), 'snake',
+  'get_symbol executes end-to-end and returns the symbol');
+
+select pg_temp.expect_eq(
+  (select jsonb_array_length(api.get_symbol('snake') -> 'interpretations')), 0,
+  'get_symbol returns an empty interpretations array (none published)');
+
+select pg_temp.expect_eq(
+  (select count(*)::int from ops.api_access
+    where fn = 'get_symbol' and at > now() - interval '1 minute') > 0, true,
+  'get_symbol logged the access (write is legal: function is volatile)');
+
+-- Ranking: results must be ordered by match weight across symbols, not by
+-- slug. Two fixture symbols share a term with different weights; the heavier
+-- one must come first even though its slug sorts later alphabetically.
+insert into content.symbol (concept_key, slug, name_th, category_id, status)
+select 'T_RANK_HEAVY', 'zz-heavy', 'ทดสอบอันดับหนัก', id, 'published'
+  from content.category where slug = 'dream-symbols';
+insert into content.symbol (concept_key, slug, name_th, category_id, status)
+select 'T_RANK_LIGHT', 'aa-light', 'ทดสอบอันดับเบา', id, 'published'
+  from content.category where slug = 'dream-symbols';
+insert into content.symbol_term (symbol_id, term, kind, weight)
+select id, 'คำทดสอบอันดับ', 'primary', 100 from content.symbol where concept_key = 'T_RANK_HEAVY';
+insert into content.symbol_term (symbol_id, term, kind, weight)
+select id, 'คำทดสอบอันดับ', 'synonym', 50 from content.symbol where concept_key = 'T_RANK_LIGHT';
+
+select pg_temp.expect_eq(
+  (select slug from api.search_symbols('คำทดสอบอันดับ', 5) limit 1), 'zz-heavy',
+  'search ranks by weight across symbols, not alphabetically by slug');
+
+-- Seed idempotency: the acquisition tracker must have a unique constraint so
+-- ON CONFLICT DO NOTHING actually has something to conflict with. Without it,
+-- every seed re-run silently duplicated the outreach list.
+select pg_temp.expect_eq(
+  (select count(*)::int from pg_constraint c
+     join pg_class t on t.oid = c.conrelid
+     join pg_namespace n on n.oid = t.relnamespace
+    where n.nspname = 'editorial' and t.relname = 'acquisition'
+      and c.contype = 'u') >= 1, true,
+  'acquisition tracker carries a unique constraint for idempotent seeds');
+
 do $$ begin
   raise notice '';
   raise notice '==========================================';

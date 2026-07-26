@@ -13,7 +13,10 @@ class SourcesScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final textTheme = Theme.of(context).textTheme;
     final tiers = ref.watch(sourceTiersProvider);
-    final count = ref.watch(sourceLibraryCountProvider).value ?? 0;
+    // Null while loading or on error: the button then omits the number
+    // entirely rather than claiming "0 รายการ" — never display a made-up
+    // count in a product about verifiable sourcing.
+    final count = ref.watch(sourceLibraryCountProvider).value;
 
     return Scaffold(
       appBar: AppBar(
@@ -64,7 +67,9 @@ class SourcesScreen extends ConsumerWidget {
                           Text('คลังตำรายังไม่เปิดในเวอร์ชันทดลอง')),
                 );
               },
-              child: Text('เปิดคลังตำรา $count รายการ'),
+              child: Text(count == null
+                  ? 'เปิดคลังตำรา'
+                  : 'เปิดคลังตำรา $count รายการ'),
             ),
           ],
         ),

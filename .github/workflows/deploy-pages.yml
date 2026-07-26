@@ -22,7 +22,7 @@ jobs:
       run:
         working-directory: app
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       - uses: subosito/flutter-action@v2
         with:
@@ -43,8 +43,18 @@ jobs:
 
       # Project Pages serve from /<repo>/, so the base href must match
       # or every asset request 404s.
+      #
+      # The Supabase values are repository VARIABLES, not secrets — the anon
+      # key ships in the JS bundle by design (RLS is the security model), and
+      # variables make rotation a settings change instead of a commit. When
+      # the variables are unset the defines are empty and the app stays on
+      # mocks, so forks and fresh clones build cleanly.
       - name: Build web
-        run: flutter build web --release --base-href /Nimit/
+        run: >
+          flutter build web --release --base-href /Nimit/
+          --dart-define=NIMIT_REMOTE=${{ vars.NIMIT_REMOTE }}
+          --dart-define=SUPABASE_URL=${{ vars.SUPABASE_URL }}
+          --dart-define=SUPABASE_ANON_KEY=${{ vars.SUPABASE_ANON_KEY }}
 
       - uses: actions/upload-pages-artifact@v3
         with:

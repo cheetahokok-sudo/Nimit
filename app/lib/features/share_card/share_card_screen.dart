@@ -1,20 +1,19 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/nimit_theme.dart';
 import '../../core/widgets/section.dart';
-import '../../data/models/dream.dart';
+import '../../data/providers.dart';
 
-class ShareCardScreen extends StatefulWidget {
-  const ShareCardScreen({super.key, this.analysis});
-
-  final DreamAnalysis? analysis;
+class ShareCardScreen extends ConsumerStatefulWidget {
+  const ShareCardScreen({super.key});
 
   @override
-  State<ShareCardScreen> createState() => _ShareCardScreenState();
+  ConsumerState<ShareCardScreen> createState() => _ShareCardScreenState();
 }
 
-class _ShareCardScreenState extends State<ShareCardScreen> {
+class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
   bool _hideName = true;
   bool _hideBirthTime = true;
   bool _showSources = false;
@@ -28,13 +27,16 @@ class _ShareCardScreenState extends State<ShareCardScreen> {
   @override
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
-    // Falls back to the sample white-snake card (matches the UI board).
-    final headline = widget.analysis?.headlineTh ?? 'งูสีขาว';
-    final subline = widget.analysis == null
-        ? 'หน้าบ้านในคืนฝนตก'
-        : widget.analysis!.themeTh;
-    final numbers = widget.analysis?.numbers ?? const ['16', '61', '269'];
-    final sourceCount = widget.analysis?.sourceCount ?? 3;
+    // The session provider survives tab switches, unlike router `extra` —
+    // reaching this screen from the home teaser used to silently show the
+    // sample card instead of the user's own dream. Without a session (e.g.
+    // the home "ดูตัวอย่าง" teaser before any dream), fall back to the sample
+    // white-snake card from the UI board.
+    final analysis = ref.watch(dreamSessionProvider)?.analysis;
+    final headline = analysis?.headlineTh ?? 'งูสีขาว';
+    final subline = analysis == null ? 'หน้าบ้านในคืนฝนตก' : analysis.themeTh;
+    final numbers = analysis?.numbers ?? const ['16', '61', '269'];
+    final sourceCount = analysis?.sourceCount ?? 3;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),

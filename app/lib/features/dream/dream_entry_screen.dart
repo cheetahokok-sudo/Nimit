@@ -43,7 +43,26 @@ class _DreamEntryScreenState extends ConsumerState<DreamEntryScreen> {
             feelingTh: _feeling,
             timeOfNightTh: _timeOfNight,
           );
-      if (mounted) context.go('/dream/result', extra: analysis);
+      // The whole session goes into the provider, not a router `extra`:
+      // the save path needs the original text and inputs, and `extra` does
+      // not survive tab switches or web refreshes.
+      ref.read(dreamSessionProvider.notifier).start(DreamSession(
+            text: text,
+            analysis: analysis,
+            feelingTh: _feeling,
+            timeOfNightTh: _timeOfNight,
+          ));
+      if (mounted) context.go('/dream/result');
+    } catch (_) {
+      // Today the mock cannot throw; the real backend will. Without this
+      // catch the spinner stops and nothing happens, which reads as a dead
+      // button.
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('วิเคราะห์ไม่สำเร็จ ลองใหม่อีกครั้ง')),
+        );
+      }
     } finally {
       if (mounted) setState(() => _analyzing = false);
     }
