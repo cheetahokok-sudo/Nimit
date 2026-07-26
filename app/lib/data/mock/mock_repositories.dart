@@ -32,12 +32,17 @@ class MockDreamRepository implements DreamRepository {
         SymbolInterpretation(
           tier: SourceTier.a1,
           sourceNameTh: 'ตำราโบราณที่ตรวจสอบได้',
+          symbolTh: 'งู',
+          summaryPlainTh:
+              'ตำราว่า จะมีคนใหม่หรือเรื่องใหม่เข้ามาเกี่ยวข้องกับครอบครัว',
           textTh:
               'การพบงูใกล้บ้านมักถูกตีความว่า มีบุคคลหรือเหตุการณ์ใหม่เข้ามาเกี่ยวข้องกับครอบครัว',
         ),
         SymbolInterpretation(
           tier: SourceTier.b2,
           sourceNameTh: 'หนังสือพิมพ์เผยแพร่ทั่วไป',
+          symbolTh: 'สีขาว',
+          summaryPlainTh: 'สีขาวหมายถึงความสงบ หรือการได้เริ่มต้นอะไรใหม่ ๆ',
           textTh:
               'สีขาวมักเชื่อมโยงกับความสงบ ผู้ใหญ่ หรือการเริ่มต้นใหม่',
         ),

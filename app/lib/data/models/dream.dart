@@ -43,6 +43,8 @@ class SymbolInterpretation {
     required this.tier,
     required this.sourceNameTh,
     required this.textTh,
+    this.symbolTh,
+    this.summaryPlainTh,
     this.sourceId,
     this.locatorTh,
     this.quoteTh,
@@ -51,6 +53,15 @@ class SymbolInterpretation {
 
   final SourceTier tier;
   final String sourceNameTh;
+
+  /// Which symbol this reading belongs to — lets the UI group plain-language
+  /// lines by symbol name.
+  final String? symbolTh;
+
+  /// ภาษาชาวบ้าน: the editor's one-to-two-line compression of [textTh],
+  /// shown FIRST for readers who will not read long prose. Editorial text
+  /// under the same review rules — never generated.
+  final String? summaryPlainTh;
 
   /// Original editorial prose. Always safe to display.
   final String textTh;
@@ -70,6 +81,8 @@ class SymbolInterpretation {
         'tier': tier.code,
         'sourceNameTh': sourceNameTh,
         'textTh': textTh,
+        if (symbolTh != null) 'symbolTh': symbolTh,
+        if (summaryPlainTh != null) 'summaryPlainTh': summaryPlainTh,
         if (sourceId != null) 'sourceId': sourceId,
         if (locatorTh != null) 'locatorTh': locatorTh,
         if (quoteTh != null) 'quoteTh': quoteTh,
@@ -81,6 +94,8 @@ class SymbolInterpretation {
         tier: SourceTier.fromCode(json['tier'] as String?),
         sourceNameTh: json['sourceNameTh'] as String,
         textTh: json['textTh'] as String,
+        symbolTh: json['symbolTh'] as String?,
+        summaryPlainTh: json['summaryPlainTh'] as String?,
         sourceId: json['sourceId']?.toString(),
         locatorTh: json['locatorTh'] as String?,
         quoteTh: json['quoteTh'] as String?,

@@ -146,6 +146,56 @@ class _DreamResultScreenState extends ConsumerState<DreamResultScreen> {
                 'พบสัญลักษณ์ในคลัง แต่ยังไม่มีคำแปลที่ผ่านการตรวจสอบแหล่งที่มา — '
                 'นิมิตจะไม่แต่งคำแปลขึ้นเองโดยไม่มีตำรารองรับ'),
           ),
+        // ภาษาชาวบ้านก่อนเสมอ: the audience reads two lines, not paragraphs.
+        // These are editorial compressions of the cited text below — same
+        // review rules, same sources — never generated on the fly.
+        if (analysis.interpretations
+            .any((i) => i.summaryPlainTh != null)) ...[
+          const SectionHeader('แปลง่าย ๆ ได้ใจความ',
+              caption: 'สรุปสั้นจากตำรา ไม่ใช่คำทำนายผล'),
+          const SizedBox(height: 10),
+          SectionCard(
+            color: NimitColors.pastelCream,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                for (final interp in analysis.interpretations)
+                  if (interp.summaryPlainTh != null)
+                    Padding(
+                      padding: const EdgeInsets.symmetric(vertical: 6),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          if (interp.symbolTh != null)
+                            Container(
+                              margin: const EdgeInsets.only(right: 10),
+                              padding: const EdgeInsets.symmetric(
+                                  horizontal: 10, vertical: 3),
+                              decoration: BoxDecoration(
+                                color: NimitColors.gold,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: Text(interp.symbolTh!,
+                                  style: textTheme.labelMedium!.copyWith(
+                                      color: NimitColors.aubergineDeep,
+                                      fontWeight: FontWeight.w700)),
+                            ),
+                          Expanded(
+                            child: Text(interp.summaryPlainTh!,
+                                style: textTheme.bodyLarge!
+                                    .copyWith(height: 1.45)),
+                          ),
+                        ],
+                      ),
+                    ),
+              ],
+            ),
+          ),
+          const SizedBox(height: 18),
+          const SectionHeader('อ้างอิงตำรา',
+              caption: 'ฉบับเต็มพร้อมที่มา สำหรับผู้อยากอ่านลึก'),
+          const SizedBox(height: 10),
+        ],
         for (final interp in analysis.interpretations) ...[
           SectionCard(
             child: Column(

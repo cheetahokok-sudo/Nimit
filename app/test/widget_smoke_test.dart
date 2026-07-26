@@ -116,6 +116,10 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('คำแปลความฝัน'), findsOneWidget);
+    // ภาษาชาวบ้านก่อนตำรา: the plain-summary card renders before the
+    // scholarly citations, because the audience reads two lines, not prose.
+    expect(find.text('แปลง่าย ๆ ได้ใจความ'), findsOneWidget);
+    expect(find.text('อ้างอิงตำรา'), findsOneWidget);
   });
 
   testWidgets('home quick-entry: empty field falls through to the full form',

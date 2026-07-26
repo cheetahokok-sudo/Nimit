@@ -205,6 +205,7 @@ select pg_temp.expect_ok($$
   update content.interpretation
      set corroborating_edition_ids =
            array(select id from content.edition where citekey = 't-pd-ed'),
+         summary_plain_th = 'สรุปสั้นสำหรับทดสอบ',
          status = 'published'
    where body_th = 'ร่างคำอธิบาย'
 $$, 'publishing allowed once corroborated by a second source');
@@ -455,6 +456,14 @@ begin
       'published interpretation carries tier, body and lawful quote handling');
   end if;
 end $$;
+
+-- Editorial completeness: every published interpretation carries its
+-- plain-language summary (ภาษาชาวบ้าน). A published row without one renders
+-- as a wall of prose for exactly the readers the product serves.
+select pg_temp.expect_eq(
+  (select count(*)::int from content.interpretation
+    where status = 'published' and summary_plain_th is null), 0,
+  'every published interpretation has a plain-language summary');
 
 -- Buddhist canon must NEVER produce number associations — permanent policy,
 -- asserted so a future seed cannot quietly cross the line. Covers every

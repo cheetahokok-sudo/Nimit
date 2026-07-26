@@ -98,5 +98,8 @@ jobs:
       - name: Apply lexicon gap-fill (horse, dragon, shark terms)
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/dream_symbols_v2_gapfill.sql
 
+      - name: Apply plain-language summaries
+        run: psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/interpretations_v3_plain_summaries.sql
+
       - name: Assertion suite (published state)
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/rights_firewall_test.sql
