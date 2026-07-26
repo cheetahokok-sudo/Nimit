@@ -670,6 +670,53 @@ select pg_temp.expect_eq(
       and routine_name = 'lottery_ingest') > 0, true,
   'service_role CAN execute api.lottery_ingest (the sole write path)');
 
+-- EXECUTE on a function is worthless without USAGE on its schema, and the two
+-- are checked independently. Shipping without this grant produced
+-- "permission denied for schema api" on every ingestion attempt while the ACL
+-- assertion above passed — the same shape of failure as api.get_symbol, where
+-- the suite inspected privileges instead of exercising them.
+select pg_temp.expect_eq(
+  has_schema_privilege('service_role', 'api', 'usage'), true,
+  'service_role has USAGE on schema api (EXECUTE alone cannot reach it)');
+
+-- And the assertion that actually settles it: hold the role and CALL the
+-- function. Any missing privilege in the chain raises here rather than in
+-- production at 16:30 on a draw day.
+do $$
+declare v jsonb;
+begin
+  set local role service_role;
+  v := api.lottery_ingest('{"response": null}'::jsonb, 'suite-role-check', 200, 'suite');
+  reset role;
+
+  if v ->> 'outcome' <> 'no_draw' then
+    raise exception 'FAIL: service_role call returned %, expected no_draw', v;
+  end if;
+  perform pg_temp.log_pass(
+    'service_role can actually CALL api.lottery_ingest, not merely be granted it');
+exception when others then
+  reset role;
+  raise;
+end $$;
+
+-- The other side of the same coin: anon must NOT be able to reach it.
+do $$
+declare denied boolean := false;
+begin
+  begin
+    set local role anon;
+    perform api.lottery_ingest('{"response": null}'::jsonb, 'suite-anon-check', 200, 'suite');
+    reset role;
+  exception when insufficient_privilege then
+    denied := true;
+    reset role;
+  end;
+  if not denied then
+    raise exception 'FAIL: anon was able to call api.lottery_ingest';
+  end if;
+  perform pg_temp.log_pass('anon is denied when it actually tries to call api.lottery_ingest');
+end $$;
+
 select pg_temp.expect_eq(
   (select count(distinct routine_name)::int from information_schema.role_routine_grants
     where grantee = 'anon' and routine_schema = 'api'
