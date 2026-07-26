@@ -30,10 +30,10 @@ class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
     // The session provider survives tab switches, unlike router `extra` —
     // reaching this screen from the home teaser used to silently show the
     // sample card instead of the user's own dream. Without a session (e.g.
-    // the home "ดูตัวอย่าง" teaser before any dream), fall back to the sample
-    // white-snake card from the UI board.
+    // the home "ดูตัวอย่าง" teaser before any dream), fall back to a sample
+    // card — a white bird, not a snake, since samples are shown to everyone.
     final analysis = ref.watch(dreamSessionProvider)?.analysis;
-    final headline = analysis?.headlineTh ?? 'งูสีขาว';
+    final headline = analysis?.headlineTh ?? 'นกสีขาว';
     final subline = analysis == null ? 'หน้าบ้านในคืนฝนตก' : analysis.themeTh;
     final numbers = analysis?.numbers ?? const ['16', '61', '269'];
     final sourceCount = analysis?.sourceCount ?? 3;

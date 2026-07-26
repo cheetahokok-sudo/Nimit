@@ -19,30 +19,36 @@ class MockDreamRepository implements DreamRepository {
     String? timeOfNightTh,
   }) async {
     await Future<void>.delayed(_latency);
+    // Demo uses a WHITE BIRD, not a snake: sample content is fed to everyone,
+    // and snakes are unwelcome to many users.
     return const DreamAnalysis(
-      headlineTh: 'งูสีขาว • หน้าบ้าน • ฝนเบา',
-      themeTh: 'การเปลี่ยนแปลงที่เข้ามาอย่างสงบ',
+      headlineTh: 'นกสีขาว • หน้าบ้าน • ฝนเบา',
+      themeTh: 'ข่าวดีที่กำลังเดินทางมาอย่างเงียบ ๆ',
       symbols: [
-        DreamSymbol(nameTh: 'งู', count: 6),
+        DreamSymbol(nameTh: 'นก', count: 3),
         DreamSymbol(nameTh: 'สีขาว', count: 1),
-        DreamSymbol(nameTh: 'บ้าน', count: 9),
-        DreamSymbol(nameTh: 'ฝน', count: 2),
+        DreamSymbol(nameTh: 'บ้าน', count: 2),
+        DreamSymbol(nameTh: 'ฝน', count: 1),
       ],
       interpretations: [
         SymbolInterpretation(
           tier: SourceTier.a1,
           sourceNameTh: 'ตำราโบราณที่ตรวจสอบได้',
-          symbolTh: 'งู',
+          symbolTh: 'นก',
           summaryPlainTh:
-              'ตำราว่า จะมีคนใหม่หรือเรื่องใหม่เข้ามาเกี่ยวข้องกับครอบครัว',
+              'ตำราว่า นกบินเข้าหาบ้านคือข่าวหรือผู้มาเยือนกำลังจะมาถึง '
+              'ถ้านกดูสงบไม่ตื่นตกใจ มักเป็นเรื่องดีมากกว่าเรื่องร้าย',
           textTh:
-              'การพบงูใกล้บ้านมักถูกตีความว่า มีบุคคลหรือเหตุการณ์ใหม่เข้ามาเกี่ยวข้องกับครอบครัว',
+              'การเห็นนกบินเข้ามาใกล้เรือน มักถูกตีความว่าจะมีข่าวสารหรือผู้มาเยือน '
+              'เข้ามาเกี่ยวข้องกับครอบครัว',
         ),
         SymbolInterpretation(
           tier: SourceTier.b2,
           sourceNameTh: 'หนังสือพิมพ์เผยแพร่ทั่วไป',
           symbolTh: 'สีขาว',
-          summaryPlainTh: 'สีขาวหมายถึงความสงบ หรือการได้เริ่มต้นอะไรใหม่ ๆ',
+          summaryPlainTh:
+              'สีขาวเป็นสีของความสงบและการเริ่มต้นใหม่ '
+              'ฝันที่มีสีขาวเด่นมักถูกมองว่าเป็นนิมิตทางดี',
           textTh:
               'สีขาวมักเชื่อมโยงกับความสงบ ผู้ใหญ่ หรือการเริ่มต้นใหม่',
         ),

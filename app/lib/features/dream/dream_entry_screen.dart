@@ -94,8 +94,10 @@ class _DreamEntryScreenState extends ConsumerState<DreamEntryScreen> {
                 maxLines: 5,
                 maxLength: 400,
                 decoration: const InputDecoration(
+                  // Bird, not snake: sample text is shown to everyone, and
+                  // snakes are unwelcome to many users.
                   hintText:
-                      'เช่น ฝันเห็นงูสีขาวอยู่หน้าบ้าน แล้วมีฝนตกเบา ๆ แต่ฉันไม่กลัว',
+                      'เช่น ฝันเห็นนกสีขาวบินวนอยู่หน้าบ้าน แล้วมีฝนตกเบา ๆ',
                   suffixIcon: Icon(Icons.mic_none, color: NimitColors.inkSoft),
                 ),
               ),

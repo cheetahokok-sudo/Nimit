@@ -85,7 +85,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       color: NimitColors.onDark,
                       fontWeight: FontWeight.w800)),
               const SizedBox(height: 2),
-              Text('พิมพ์หรือพูด เช่น “ฝันเห็นงูสีขาวหน้าบ้าน”',
+              // Example deliberately avoids snakes: many users dislike or
+              // fear them, and the sample text is fed to everyone constantly.
+              Text('พิมพ์หรือพูด เช่น “ฝันเห็นนกสีขาวหน้าบ้าน”',
                   style: textTheme.bodySmall!
                       .copyWith(color: NimitColors.onDarkSoft)),
               const SizedBox(height: 14),
