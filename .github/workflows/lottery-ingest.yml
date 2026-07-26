@@ -1,0 +1,123 @@
+name: Ingest lottery results
+
+# Official สลากกินแบ่งรัฐบาล results, fetched server-side and written to Supabase.
+#
+# WHY SERVER-SIDE: the app is Flutter web on GitHub Pages and cannot call
+# glo.or.th from the browser (CORS). Ingesting here also means the app keeps
+# answering when GLO is down, and accumulates the history the statistics need.
+#
+# WHY A DAILY CRON AND NOT JUST THE 1st/16th: GLO moves draws, and far more
+# often than the convention suggests. Measured against the live API: 1 ม.ค. 2568
+# was drawn on 2 ม.ค., and 16 ม.ค. 2568 was drawn on 17 ม.ค. — two of the four
+# draws in a six-week window. The daily run is the only thing that catches a
+# moved งวด; the draw-day runs just get the result sooner.
+#
+# TWO CAVEATS about GitHub schedules, both survivable given the daily run plus
+# the freshness alarm below: scheduled workflows are disabled after 60 days of
+# repository inactivity, and scheduled runs can be delayed under load.
+
+on:
+  schedule:
+    # Draw days (incl. ±1 for moved draws): 16:30, 18:30, 20:30, 22:30 ICT.
+    # GLO announces รางวัลที่ 1 first and completes the rest over ~2 hours, so
+    # the early runs land a 'partial' and a later one completes it.
+    - cron: '30 9,11,13,15 1,2,16,17 * *'
+    # Daily catch-all at 09:00 ICT — the moved-draw safety net.
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: 'latest | backfill | probe'
+        type: choice
+        options: [latest, backfill, probe]
+        default: latest
+      from_date:
+        description: 'backfill start (YYYY-MM-DD), default 2 years back'
+        type: string
+        required: false
+      to_date:
+        description: 'backfill end (YYYY-MM-DD), default today'
+        type: string
+        required: false
+      dates:
+        description: 'explicit comma-separated dates, e.g. 2025-05-02,2025-01-02'
+        type: string
+        required: false
+
+permissions:
+  contents: read
+
+# Never cancel a run mid-write.
+concurrency:
+  group: lottery-ingest
+  cancel-in-progress: false
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+
+      # Pinned rather than trusting the runner default: the script relies on
+      # global fetch and AbortSignal.timeout.
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Ingest
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          # A repository SECRET, unlike SUPABASE_ANON_KEY which is a variable by
+          # design because it ships in the JS bundle. This key must appear in
+          # this workflow and nowhere else — never as a --dart-define.
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          MODE="${{ github.event.inputs.mode }}"
+          if [ -z "$MODE" ]; then MODE=latest; fi
+          ARGS="--mode=$MODE"
+          if [ -n "${{ github.event.inputs.from_date }}" ]; then ARGS="$ARGS --from=${{ github.event.inputs.from_date }}"; fi
+          if [ -n "${{ github.event.inputs.to_date }}" ];   then ARGS="$ARGS --to=${{ github.event.inputs.to_date }}"; fi
+          if [ -n "${{ github.event.inputs.dates }}" ];     then ARGS="$ARGS --dates=${{ github.event.inputs.dates }}"; fi
+          echo "running: node scripts/ingest-lottery.mjs $ARGS"
+          node scripts/ingest-lottery.mjs $ARGS
+
+  # A silent ingestion failure is indistinguishable from "nobody won", so this
+  # checks the OUTCOME rather than the run. It deliberately uses the ANON key
+  # and the same function the app calls, so it fails for the same reasons a user
+  # would see — a green ingest job that wrote nothing useful still trips this.
+  freshness-alarm:
+    runs-on: ubuntu-latest
+    needs: ingest
+    if: always()
+    steps:
+      - name: Latest announced draw must be recent
+        env:
+          SUPABASE_URL: ${{ vars.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ vars.SUPABASE_ANON_KEY }}
+        run: |
+          set -euo pipefail
+          body=$(curl -sS -X POST "$SUPABASE_URL/rest/v1/rpc/lottery_draw" \
+            -H "apikey: $SUPABASE_ANON_KEY" \
+            -H "Authorization: Bearer $SUPABASE_ANON_KEY" \
+            -H "Content-Type: application/json" \
+            -d '{"p_draw_date": null}')
+
+          date=$(echo "$body" | node -e \
+            'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>{try{console.log(JSON.parse(s).drawDate??"")}catch{console.log("")}})')
+
+          if [ -z "$date" ]; then
+            echo "::error::No announced draw is reachable through api.lottery_draw."
+            echo "$body" | head -c 500
+            exit 1
+          fi
+
+          age=$(( ( $(date +%s) - $(date -d "$date" +%s) ) / 86400 ))
+          echo "latest announced draw: $date (${age} days old)"
+
+          # Longest legitimate gap is ~17 days (a draw moved to 30 ธ.ค. followed
+          # by 16 ม.ค.). 20 leaves headroom so the alarm stays trustworthy —
+          # an alarm that cries wolf gets ignored, which defeats its purpose.
+          if [ "$age" -gt 20 ]; then
+            echo "::error::Latest announced draw is ${age} days old. Ingestion is stale."
+            exit 1
+          fi

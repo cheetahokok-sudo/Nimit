@@ -285,20 +285,20 @@ select pg_temp.section('7. Access control');
 select pg_temp.expect_eq(
   (select count(*)::int from information_schema.role_table_grants
     where grantee in ('anon','authenticated')
-      and table_schema in ('content','editorial','ops')), 0,
-  'anon/authenticated hold ZERO grants in content, editorial and ops');
+      and table_schema in ('content','editorial','ops','lottery')), 0,
+  'anon/authenticated hold ZERO grants in content, editorial, ops and lottery');
 
 select pg_temp.expect_eq(
   (select count(*)::int from pg_tables t
      join pg_class c on c.relname = t.tablename
      join pg_namespace n on n.oid = c.relnamespace and n.nspname = t.schemaname
-    where t.schemaname in ('content','editorial','ops')
+    where t.schemaname in ('content','editorial','ops','lottery')
       and not (c.relrowsecurity and c.relforcerowsecurity)), 0,
   'every protected table has RLS enabled and forced');
 
 select pg_temp.expect_eq(
   (select count(*)::int from pg_policies
-    where schemaname in ('content','editorial','ops')), 0,
+    where schemaname in ('content','editorial','ops','lottery')), 0,
   'no permissive policies exist on protected tables');
 
 -- Assert on the ACL itself, not on a role grant and not on an HTTP status.
@@ -337,21 +337,21 @@ select pg_temp.expect_eq(
 select pg_temp.expect_eq(
   (select count(*)::int from pg_proc p
      join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname in ('content','ops')
+    where n.nspname in ('content','ops','lottery')
       and (p.proacl is null
            or exists (select 1 from unnest(p.proacl) a where a::text like '=%'))), 0,
-  'PUBLIC cannot execute any function in content or ops');
+  'PUBLIC cannot execute any function in content, ops or lottery');
 
 -- Every function reachable from the API must pin its search_path, so a caller
 -- cannot shadow what the body resolves.
 select pg_temp.expect_eq(
   (select count(*)::int from pg_proc p
      join pg_namespace n on n.oid = p.pronamespace
-    where n.nspname in ('api','content','ops')
+    where n.nspname in ('api','content','ops','lottery')
       and p.prokind = 'f'
       and (p.proconfig is null
            or not exists (select 1 from unnest(p.proconfig) c where c like 'search_path=%'))), 0,
-  'every function in api, content and ops pins search_path');
+  'every function in api, content, ops and lottery pins search_path');
 
 select pg_temp.expect_eq(
   (select count(*)::int from information_schema.role_routine_grants
@@ -617,6 +617,266 @@ begin
   end if;
   perform pg_temp.log_pass('equal-span compounds still surface both symbols');
 end $$;
+
+-- ---------------------------------------------------------------------------
+select pg_temp.section('10. Lottery — official draw results');
+-- ---------------------------------------------------------------------------
+-- Everything in this section guards one outcome: a user being shown the wrong
+-- money, or being told they lost when they won. Fixtures are built inside this
+-- transaction and roll back with it, so no seed step is needed.
+
+-- --- Money integrity ------------------------------------------------------
+-- Two constants that are properties of the published GLO prize structure. A
+-- typo in the reference seed changes one of them, and CI fails here instead of
+-- a user reading a wrong figure on a screen.
+select pg_temp.expect_eq(
+  (select sum(winner_count)::int from lottery.prize_tier where effective_to is null), 173,
+  'a draw is exactly 173 winning numbers');
+
+select pg_temp.expect_eq(
+  (select sum(amount_thb * winner_count)::bigint from lottery.prize_tier
+    where effective_to is null), 12018000::bigint,
+  'the prize pool per draw is exactly 12,018,000 baht');
+
+-- The mapping that pays different people if reversed. Verified against งวด
+-- 16 ธันวาคม 2567, where GLO returned last3f = 290,742 (published as เลขหน้า)
+-- and last3b = 339,881 (published as เลขท้าย). The key names read the other
+-- way round, which is exactly why this is pinned.
+select pg_temp.expect_eq(
+  (select match_kind::text from lottery.prize_tier where glo_key = 'last3f'), 'prefix3',
+  'GLO last3f maps to เลขหน้า 3 ตัว (prefix match)');
+
+select pg_temp.expect_eq(
+  (select match_kind::text from lottery.prize_tier where glo_key = 'last3b'), 'suffix3',
+  'GLO last3b maps to เลขท้าย 3 ตัว (suffix match)');
+
+-- --- Access control -------------------------------------------------------
+select pg_temp.expect_eq(
+  (select count(*)::int from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'api' and p.proname = 'lottery_ingest'
+      and (p.proacl is null
+           or exists (select 1 from unnest(p.proacl) a where a::text like '=%'))), 0,
+  'PUBLIC cannot execute api.lottery_ingest (no empty-grantee ACL entry)');
+
+select pg_temp.expect_eq(
+  (select count(*)::int from information_schema.role_routine_grants
+    where grantee in ('anon','authenticated') and routine_schema = 'api'
+      and routine_name = 'lottery_ingest'), 0,
+  'neither anon nor authenticated may execute api.lottery_ingest');
+
+select pg_temp.expect_eq(
+  (select count(*)::int from information_schema.role_routine_grants
+    where grantee = 'service_role' and routine_schema = 'api'
+      and routine_name = 'lottery_ingest') > 0, true,
+  'service_role CAN execute api.lottery_ingest (the sole write path)');
+
+select pg_temp.expect_eq(
+  (select count(distinct routine_name)::int from information_schema.role_routine_grants
+    where grantee = 'anon' and routine_schema = 'api'
+      and routine_name in ('lottery_draw','lottery_recent_draws',
+                           'lottery_calendar','lottery_digit_stats')), 4,
+  'anon CAN execute all four lottery read functions');
+
+-- service_role holds no table DML: the entire write surface is one function.
+select pg_temp.expect_eq(
+  (select count(*)::int from information_schema.role_table_grants
+    where grantee = 'service_role' and table_schema = 'lottery'), 0,
+  'service_role holds no direct table grants in lottery');
+
+-- --- Fixtures -------------------------------------------------------------
+-- A complete draw and a mid-announcement one, built from the real payload
+-- shape (response.data.<glo_key>.number[].value) rather than a guess.
+create or replace function pg_temp.fake_payload(p_date text, p_omit text[] default '{}')
+returns jsonb language sql as $$
+  select jsonb_build_object('response', jsonb_build_object(
+    'date', p_date,
+    'period', jsonb_build_array(1, 2),
+    'data', coalesce((
+      select jsonb_object_agg(pt.glo_key, jsonb_build_object(
+               'price', pt.amount_thb::text || '.00',
+               'number', (
+                 select jsonb_agg(jsonb_build_object(
+                          'round', g,
+                          'value', case pt.match_kind
+                            when 'exact6'  then lpad(((g * 7919) % 1000000)::text, 6, '0')
+                            when 'suffix2' then lpad(((g * 13) % 100)::text, 2, '0')
+                            else lpad(((g * 137) % 1000)::text, 3, '0') end))
+                   from generate_series(1, pt.winner_count) g)))
+        from lottery.prize_tier pt
+       where pt.effective_to is null and not (pt.glo_key = any(p_omit))), '{}'::jsonb)));
+$$;
+
+do $$
+declare v jsonb;
+begin
+  v := api.lottery_ingest(pg_temp.fake_payload('2099-01-01'), 'test', 200, 'suite');
+  if v ->> 'outcome' <> 'announced' or (v ->> 'numbers')::int <> 173 then
+    raise exception 'FAIL: complete payload did not ingest as announced/173: %', v;
+  end if;
+  perform pg_temp.log_pass('a complete payload ingests as announced with 173 numbers');
+end $$;
+
+-- Read path must EXECUTE, not merely be callable. api.get_symbol once shipped
+-- declared STABLE while writing, so it failed for every real caller while an
+-- ACL-only suite stayed green. Same mistake is not repeatable here.
+do $$
+declare d jsonb;
+begin
+  d := api.lottery_draw('2099-01-01'::date);
+  if d ->> 'status' <> 'announced' then
+    raise exception 'FAIL: fixture draw not announced: %', d ->> 'status';
+  end if;
+  if (d ->> 'complete')::boolean is not true then
+    raise exception 'FAIL: complete flag false on a full draw';
+  end if;
+  if jsonb_array_length(d -> 'prizes') <> 9 then
+    raise exception 'FAIL: expected 9 prize tiers, got %', jsonb_array_length(d -> 'prizes');
+  end if;
+  if (select sum(jsonb_array_length(p -> 'numbers'))
+        from jsonb_array_elements(d -> 'prizes') p) <> 173 then
+    raise exception 'FAIL: draw payload does not carry 173 numbers';
+  end if;
+  -- Amounts must travel WITH the numbers; a client that had to fetch them
+  -- separately could pair this draw with a previous structure's prices.
+  if (select p ->> 'amountThb' from jsonb_array_elements(d -> 'prizes') p
+       where p ->> 'code' = 'first') <> '6000000' then
+    raise exception 'FAIL: first prize amount missing or wrong in the draw payload';
+  end if;
+  perform pg_temp.log_pass('api.lottery_draw executes and returns 9 tiers, 173 numbers, with amounts');
+end $$;
+
+-- Idempotency: the ingest workflow runs several times per draw day on purpose.
+do $$
+declare v jsonb; n int; raw_before int; raw_after int;
+begin
+  select count(*) into raw_before from lottery.raw_payload;
+  v := api.lottery_ingest(pg_temp.fake_payload('2099-01-01'), 'test', 200, 'suite');
+  select count(*) into n from lottery.result r
+    join lottery.draw d on d.id = r.draw_id where d.draw_date = '2099-01-01';
+  select count(*) into raw_after from lottery.raw_payload;
+
+  if n <> 173 then raise exception 'FAIL: re-ingest changed result count to %', n; end if;
+  if (select result_revision from lottery.draw where draw_date = '2099-01-01') <> 0 then
+    raise exception 'FAIL: identical re-ingest bumped result_revision';
+  end if;
+  if (select count(*) from lottery.draw where draw_date = '2099-01-01') <> 1 then
+    raise exception 'FAIL: re-ingest duplicated the draw row';
+  end if;
+  if raw_after <> raw_before + 1 then
+    raise exception 'FAIL: re-ingest did not retain its own raw payload';
+  end if;
+  perform pg_temp.log_pass('re-ingesting an identical payload is idempotent (1 draw, 173 results, revision 0)');
+end $$;
+
+-- THE MOST IMPORTANT ASSERTION IN THIS SECTION.
+-- GLO publishes รางวัลที่ 1 and เลขท้าย 2 ตัว first and completes the remaining
+-- tiers over about two hours. If a payload fetched inside that window were
+-- treated as announced, roughly 150 real 4th/5th-prize winners per งวด would be
+-- told they lost. The partial draw must be stored but must never become the
+-- draw that api.lottery_draw(null) hands back for checking.
+do $$
+declare v jsonb; d jsonb;
+begin
+  v := api.lottery_ingest(
+         pg_temp.fake_payload('2099-01-16', array['fourth','fifth']), 'test', 200, 'suite');
+  if v ->> 'outcome' <> 'partial' then
+    raise exception 'FAIL: mid-announcement payload ingested as %, expected partial', v ->> 'outcome';
+  end if;
+
+  d := api.lottery_draw(null);
+  if d ->> 'drawDate' = '2099-01-16' then
+    raise exception 'FAIL: a PARTIAL draw was served as the latest announced draw';
+  end if;
+  if d ->> 'drawDate' <> '2099-01-01' then
+    raise exception 'FAIL: expected the complete 2099-01-01 draw, got %', d ->> 'drawDate';
+  end if;
+
+  d := api.lottery_draw('2099-01-16'::date);
+  if (d ->> 'complete')::boolean is not false then
+    raise exception 'FAIL: partial draw reports complete = true';
+  end if;
+  perform pg_temp.log_pass('a PARTIAL draw is stored but never served as the latest announced draw');
+end $$;
+
+-- A malformed number must be rejected before it reaches the table, because the
+-- CHECK would raise and roll back the raw payload with it.
+do $$
+declare v jsonb; bad jsonb;
+begin
+  bad := pg_temp.fake_payload('2099-02-01');
+  bad := jsonb_set(bad, '{response,data,second,number,0,value}', '"0411"'::jsonb);
+  v := api.lottery_ingest(bad, 'test', 200, 'suite');
+  if (v ->> 'ok')::boolean is not false then
+    raise exception 'FAIL: a 4-digit six-digit prize number was accepted';
+  end if;
+  if exists (select 1 from lottery.draw where draw_date = '2099-02-01') then
+    raise exception 'FAIL: a rejected payload still created a draw row';
+  end if;
+  perform pg_temp.log_pass('a malformed prize number is rejected and creates no draw');
+end $$;
+
+-- The retention rule that makes a shape change recoverable. If someone changes
+-- the function to `raise` on bad input, the transaction rolls back and the
+-- payload is lost — this is the assertion that catches it.
+do $$
+declare v jsonb;
+begin
+  v := api.lottery_ingest('{"nope": 1}'::jsonb, 'test-shape', 200, 'suite');
+  if (v ->> 'ok')::boolean is not false then
+    raise exception 'FAIL: an unrecognised envelope was accepted';
+  end if;
+  -- A missing `response` key is a SHAPE CHANGE and must not be reported as
+  -- "no draw that day", or a GLO redesign would look like an empty calendar.
+  if v ->> 'outcome' <> 'invalid' then
+    raise exception 'FAIL: unknown shape reported as %, expected invalid', v ->> 'outcome';
+  end if;
+  if not exists (select 1 from lottery.raw_payload
+                  where endpoint = 'test-shape' and not ok and reason_th is not null) then
+    raise exception 'FAIL: a failed parse did not retain its raw payload';
+  end if;
+  perform pg_temp.log_pass('a failed parse is retained in raw_payload with a reason, not rolled back');
+end $$;
+
+-- response: null is a legitimate answer (no draw that date), not a failure.
+do $$
+declare v jsonb;
+begin
+  v := api.lottery_ingest('{"response": null}'::jsonb, 'test', 200, 'suite');
+  if v ->> 'outcome' <> 'no_draw' or (v ->> 'ok')::boolean is not true then
+    raise exception 'FAIL: response:null should be outcome no_draw / ok true, got %', v;
+  end if;
+  perform pg_temp.log_pass('response:null reports no_draw rather than an error');
+end $$;
+
+-- --- Constraints ----------------------------------------------------------
+select pg_temp.expect_fail($$
+  insert into lottery.result (draw_id, tier_code, match_kind, number, ordinal)
+  select id, 'first', 'exact6', '12345', 99 from lottery.draw where draw_date = '2099-01-01'
+$$, 'a 5-digit number is rejected from a 6-digit tier');
+
+select pg_temp.expect_fail($$
+  update lottery.draw set status = 'announced', announced_at = null
+   where draw_date = '2099-01-16'
+$$, 'a draw cannot be announced without an announcement timestamp');
+
+select pg_temp.expect_fail($$
+  insert into lottery.result (draw_id, tier_code, match_kind, number, ordinal)
+  select id, 'last2', 'exact6', '123456', 99 from lottery.draw where draw_date = '2099-01-01'
+$$, 'match_kind cannot be forged: the composite FK pins it to the tier');
+
+-- --- Statistics -----------------------------------------------------------
+select pg_temp.expect_eq(
+  jsonb_array_length(api.lottery_digit_stats(24) -> 'last2'), 100,
+  'digit stats emit all 100 two-digit buckets, including zeros');
+
+select pg_temp.expect_eq(
+  (api.lottery_digit_stats(24) ->> 'noteTh') is not null, true,
+  'digit stats carry the randomness caveat in the same object as the numbers');
+
+-- The window cap is what keeps this affordable to compute on the fly.
+select pg_temp.expect_eq(
+  (api.lottery_digit_stats(99999) ->> 'windowDraws')::int <= 120, true,
+  'the statistics window is capped regardless of what is requested');
 
 do $$ begin
   raise notice '';

@@ -5,7 +5,9 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:nimit/core/router/app_router.dart';
+import 'package:nimit/data/models/lottery.dart';
 import 'package:nimit/data/providers.dart';
+import 'package:nimit/data/repositories/repositories.dart';
 import 'package:nimit/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -16,11 +18,23 @@ void main() {
     SharedPreferences.setMockInitialValues({});
   });
 
-  Future<void> pumpApp(WidgetTester tester) async {
+  /// [lottery] lets a test supply a specific draw WITHOUT changing the defaults
+  /// in providers.dart — those must stay on mocks so `flutter test` needs no
+  /// network and the CI gate keeps its meaning.
+  ///
+  /// Typed as the repository rather than a list of overrides because riverpod's
+  /// `Override` is not exported by flutter_riverpod, and adding a dependency to
+  /// name a type in a test would be a poor trade.
+  Future<void> pumpApp(WidgetTester tester,
+      {LotteryRepository? lottery}) async {
     final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(
       ProviderScope(
-        overrides: [sharedPreferencesProvider.overrideWithValue(prefs)],
+        overrides: [
+          sharedPreferencesProvider.overrideWithValue(prefs),
+          if (lottery != null)
+            lotteryRepositoryProvider.overrideWithValue(lottery),
+        ],
         child: const NimitApp(),
       ),
     );
@@ -155,4 +169,148 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('ตรวจหวยรัฐบาล'), findsOneWidget);
   });
+
+  group('ตรวจหวย renders money and withholds verdicts correctly', () {
+    testWidgets('a winning saved number shows a formatted baht amount',
+        (tester) async {
+      tester.view.physicalSize = const Size(420, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      SharedPreferences.setMockInitialValues({
+        'nimit.tickets.v1': jsonEncode([
+          {
+            'number': '639214',
+            'savedAt': '2026-07-16T09:00:00.000',
+            'quantity': 2,
+          }
+        ]),
+      });
+
+      await pumpApp(tester, lottery: _FixtureLotteryRepository.announced());
+      await tester.tap(find.text('ตรวจหวย'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('ถูกรางวัล!'), findsOneWidget);
+      // Separators matter: a bare 12000000 is unreadable at a glance to the
+      // audience this screen is for.
+      expect(find.text('฿12,000,000'), findsWidgets);
+      expect(find.textContaining('ไม่ถูกรางวัล'), findsNothing);
+    });
+
+    testWidgets('a PARTIAL draw never renders ไม่ถูกรางวัล', (tester) async {
+      tester.view.physicalSize = const Size(420, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      SharedPreferences.setMockInitialValues({
+        'nimit.tickets.v1': jsonEncode([
+          {'number': '111111', 'savedAt': '2026-07-16T09:00:00.000'}
+        ]),
+      });
+
+      await pumpApp(tester, lottery: _FixtureLotteryRepository.partial());
+      await tester.tap(find.text('ตรวจหวย'));
+      await tester.pumpAndSettle();
+
+      // The number is listed, but the app must not claim it lost — the draw
+      // is only half announced and 4th/5th prize have not been published.
+      expect(find.text('111111'), findsOneWidget);
+      expect(find.textContaining('ไม่ถูกรางวัล'), findsNothing);
+      expect(find.text('ผลยังไม่ครบ'), findsWidgets);
+    });
+
+    testWidgets('a losing number on a complete draw does say ไม่ถูกรางวัล',
+        (tester) async {
+      tester.view.physicalSize = const Size(420, 1400);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      SharedPreferences.setMockInitialValues({
+        'nimit.tickets.v1': jsonEncode([
+          {'number': '111111', 'savedAt': '2026-07-16T09:00:00.000'}
+        ]),
+      });
+
+      await pumpApp(tester, lottery: _FixtureLotteryRepository.announced());
+      await tester.tap(find.text('ตรวจหวย'));
+      await tester.pumpAndSettle();
+
+      expect(find.text('ไม่ถูกรางวัล'), findsOneWidget);
+    });
+  });
+}
+
+/// A draw fixture with a real prize structure, injected per test.
+///
+/// Deliberately separate from MockLotteryRepository: the mock is the demo the
+/// public build shows and its numbers are chosen NOT to win, whereas these
+/// tests need a controlled winner.
+class _FixtureLotteryRepository implements LotteryRepository {
+  _FixtureLotteryRepository({required this.status, required this.complete});
+
+  factory _FixtureLotteryRepository.announced() =>
+      _FixtureLotteryRepository(status: DrawStatus.announced, complete: true);
+
+  factory _FixtureLotteryRepository.partial() =>
+      _FixtureLotteryRepository(status: DrawStatus.partial, complete: false);
+
+  final DrawStatus status;
+  final bool complete;
+
+  DrawResult _draw() => DrawResult(
+        drawDate: DateTime(2026, 7, 16),
+        periodLabelTh: 'งวดวันที่ 16 กรกฎาคม 2569',
+        status: status,
+        resultRevision: 0,
+        complete: complete,
+        hasUnreadableTier: false,
+        dutyRate: 0.005,
+        prizes: [
+          const PrizeTierResult(
+            code: 'first',
+            nameTh: 'รางวัลที่ 1',
+            shortNameTh: 'ที่ 1',
+            amountThb: 6000000,
+            winnerCount: 1,
+            matchKind: MatchKind.exact6,
+            sort: 10,
+            numbers: ['639214'],
+          ),
+          const PrizeTierResult(
+            code: 'last2',
+            nameTh: 'รางวัลเลขท้าย 2 ตัว',
+            shortNameTh: 'ท้าย 2 ตัว',
+            amountThb: 2000,
+            winnerCount: 1,
+            matchKind: MatchKind.suffix2,
+            sort: 90,
+            numbers: ['71'],
+          ),
+        ],
+        sourceCustodianTh: 'สำนักงานสลากกินแบ่งรัฐบาล',
+      );
+
+  @override
+  Future<DrawInfo> currentDraw() async => DrawInfo(
+        drawDate: DateTime(2026, 8, 1),
+        statusTh: 'รอประกาศ',
+        status: DrawStatus.scheduled,
+      );
+
+  @override
+  Future<DrawResult> latestDraw() async => _draw();
+
+  @override
+  Future<List<DrawResult>> recentDraws({int limit = 12}) async => [_draw()];
+
+  @override
+  Future<DigitStats> digitStats({int windowDraws = 24}) async => const
+      DigitStats(
+    windowDraws: 1,
+    last2: [],
+    positionDigits: [],
+    neverSeenLast2: 100,
+    noteTh: 'ทดสอบ',
+  );
 }

@@ -17,6 +17,7 @@ migrations+assertion suite)
 | A0 Scaffold | 8 หน้าจอตาม UI board v2, 5 แท็บ, ภาษาไทยเป็นหลัก, mock data, journal/เลข/งบ เก็บในเครื่อง | ทุกหน้าจอเดินได้จริง, `flutter test` เขียว, deploy ขึ้น Pages | ✅ |
 | A1 Live read | อ่านข้อมูลจริงชุดแรกจาก backend | หน้าแหล่งอ้างอิงแสดงจำนวนจริงจากฐานข้อมูล (46) ผ่าน `PostgrestSourcesRepository` | ✅ |
 | A2 Dream analysis จริง | `analyze()` เรียก `api.analyze_dream` (SQL, deterministic) สแกนแบบ longest-match กับ `symbol_term` แล้วคืนคำแปลจริงพร้อม citation, quote (เมื่อ PD), context note และสถานะว่างอย่างซื่อสัตย์ | ✅ ฝันเรื่องงูในแอป → คำแปลจากมหาสุบินชาดกพร้อมป้าย A2, ที่มา และคำกำกับ; mock ยังเป็นค่า default ของเทสต์ | ✅ |
+| A6 ตรวจหวยจริง | ผลรางวัลทางการจาก GLO เก็บเข้า schema `lottery` ผ่าน GitHub Actions, ตรวจเลขในเครื่อง (เลขผู้ใช้ไม่ออกเน็ต), เก็บย้อนหลังสำหรับสถิติ, `จำนวนใบ` สำหรับคนซื้อเป็นชุด | ✅ ตรวจครบ 173 เลข 9 รางวัล, งวดที่ประกาศไม่ครบจะไม่ตัดสินว่า "ไม่ถูกรางวัล", ยอดเงินมาจากฐานข้อมูลพร้อมตัวเลขในก้อนเดียวกัน | ✅ |
 | A3 Library browser | ปุ่ม "เปิดคลังตำรา" ใช้งานจริง: ค้นสัญลักษณ์, หน้ารายละเอียดพร้อมคำแปล+บรรณานุกรม+quote ที่ชอบด้วยกฎหมาย | ผู้ใช้ตามรอยจากคำแปลไปถึงระเบียนต้นฉบับได้ในสองแตะ | ⬜ |
 | A4 Auth + ข้อมูลผู้ใช้ | Anonymous sign-in, journal ย้ายขึ้น cloud (สมัครใจ), `public` schema + RLS per-uid, consent log แบบ append-only, ลบ/ส่งออกข้อมูลได้ | ผ่านรีวิว PDPA โดยที่ปรึกษากฎหมายก่อนเปิด; privacy notice ภาษาไทยเขียนก่อน schema | ⬜ |
 | A5 Trends จริง | กระแสจากข้อมูลจริงภายใต้ k-anonymity (≥25 ผู้ใช้ ≥3 จังหวัดต่อหนึ่งเทรนด์) | หน้ากระแสแสดงข้อมูลจริงโดยพิสูจน์ได้ว่าไม่เปิดเผยรายบุคคล | ⬜ |
@@ -55,6 +56,7 @@ migrations+assertion suite)
 | CI: Flutter gate + DB gate (สอง workflow) | โค้ดและ SQL มีด่านเท่ากัน; DB suite รันทั้ง state ก่อน/หลัง publish | ✅ |
 | Security posture: RLS deny-all, api-only exposure, function ACL hardening | ยืนยันแล้วด้วย 40+ assertion บนฐานจริง | ✅ |
 | pg_cron: `ops.prune_api_access()` + `ops.assert_rights_invariants()` รายสัปดาห์ | access log ไม่โตไม่หยุด, smoke alarm สิทธิ์ทำงานเอง | ⬜ ตั้งใน dashboard |
+| Lottery ingest workflow + freshness alarm | ดึงผลรางวัลทางการอัตโนมัติ (วันหวยออกหลายรอบ + รายวันกันงวดเลื่อน) และเตือนเมื่อผลล่าสุดเก่าเกิน 20 วัน — ingest ที่ล้มเงียบ ๆ หน้าตาเหมือน "ไม่มีใครถูกรางวัล" | ✅ |
 | Nightly export ของ published rows → repo ส่วนตัว | สำรองแบบ diff ได้ + ทางหนี vendor lock-in; ห้ามรวม `editorial` | ⬜ |
 | PITR | แผนฟรีมีแค่ daily snapshot — เมื่อเนื้อหาจริงเกินหลักร้อย รายการนี้คือประกันของทั้งบริษัท | ⬜ ต้อง Pro |
 | Restore drill รายไตรมาส | backup ที่ไม่เคยลอง restore คือความเชื่อ ไม่ใช่ backup | ⬜ |

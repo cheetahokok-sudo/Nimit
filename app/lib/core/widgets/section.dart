@@ -92,10 +92,14 @@ class DarkCard extends StatelessWidget {
 
 /// Recurring compliance line, e.g. "ไม่ใช่คำทำนายผล".
 class DisclaimerText extends StatelessWidget {
-  const DisclaimerText(this.text, {super.key, this.center = false});
+  const DisclaimerText(this.text, {super.key, this.center = false, this.color});
 
   final String text;
   final bool center;
+
+  /// Defaults to [NimitColors.inkSoft], which is unreadable on aubergine.
+  /// Pass [NimitColors.onDarkSoft] inside a [DarkCard].
+  final Color? color;
 
   @override
   Widget build(BuildContext context) {
@@ -105,7 +109,7 @@ class DisclaimerText extends StatelessWidget {
       style: Theme.of(context)
           .textTheme
           .bodySmall!
-          .copyWith(color: NimitColors.inkSoft),
+          .copyWith(color: color ?? NimitColors.inkSoft),
     );
   }
 }

@@ -8,6 +8,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/nimit_theme.dart';
 import 'data/providers.dart';
 import 'data/remote/postgrest_dream_repository.dart';
+import 'data/remote/postgrest_lottery_repository.dart';
 import 'data/remote/postgrest_sources_repository.dart';
 
 /// Set via --dart-define. When enabled and configured, the sources screen
@@ -39,6 +40,14 @@ Future<void> main() async {
           // The core loop: เล่าความฝัน → real analysis from the live library.
           dreamRepositoryProvider.overrideWithValue(
             PostgrestDreamRepository(
+              baseUrl: _supabaseUrl,
+              anonKey: _supabaseAnonKey,
+            ),
+          ),
+          // ตรวจหวย: official GLO results, ingested server-side. Ticket
+          // matching stays on-device, so no number leaves the phone.
+          lotteryRepositoryProvider.overrideWithValue(
+            PostgrestLotteryRepository(
               baseUrl: _supabaseUrl,
               anonKey: _supabaseAnonKey,
             ),

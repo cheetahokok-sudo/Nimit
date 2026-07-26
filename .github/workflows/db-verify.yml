@@ -55,7 +55,8 @@ jobs:
                    supabase/seeds/sources_v3_legal_corrections.sql \
                    supabase/seeds/sources_v4_tipitaka.sql \
                    supabase/seeds/sources_v5_wisan_research.sql \
-                   supabase/seeds/dream_symbols_v1.sql; do
+                   supabase/seeds/dream_symbols_v1.sql \
+                   supabase/seeds/lottery_reference_v1.sql; do
             echo "== $f"
             psql "$PGURL" -v ON_ERROR_STOP=1 -q -f "$f"
           done
@@ -64,7 +65,8 @@ jobs:
         run: |
           for f in supabase/seeds/sources_v1.sql \
                    supabase/seeds/sources_v2_research.sql \
-                   supabase/seeds/dream_symbols_v1.sql; do
+                   supabase/seeds/dream_symbols_v1.sql \
+                   supabase/seeds/lottery_reference_v1.sql; do
             psql "$PGURL" -v ON_ERROR_STOP=1 -q -f "$f"
           done
           psql "$PGURL" -v ON_ERROR_STOP=1 -t -c "

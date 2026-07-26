@@ -120,4 +120,76 @@ void main() {
       expect(budget.limit, 500);
     });
   });
+
+  group('adding a field must not destroy existing saved numbers', () {
+    // THE FAILURE THIS GUARDS. save() reads the whole list via all(), appends,
+    // and writes it back. all() uses _decodeListOrEmpty, which SKIPS entries
+    // whose fromJson throws. So if a newly added field is parsed strictly, a
+    // payload written by an older build loses every entry on the next save —
+    // permanently, with no error anywhere. The user's numbers simply vanish.
+    //
+    // This is not hypothetical: `quantity` was added to SavedTicket in the
+    // ตรวจหวย work, and `json['quantity'] as int` would have done exactly this.
+    test('legacy entries survive a save after a new field is introduced',
+        () async {
+      SharedPreferences.setMockInitialValues({
+        'nimit.tickets.v1': '['
+            '{"number":"111111","savedAt":"2026-07-01T10:00:00.000"},'
+            '{"number":"222222","savedAt":"2026-07-02T10:00:00.000"},'
+            '{"number":"333333","savedAt":"2026-07-03T10:00:00.000"}]'
+      });
+      final prefs = await SharedPreferences.getInstance();
+      final repo = LocalSavedTicketsRepository(prefs);
+
+      expect((await repo.all()).length, 3, reason: 'legacy payload must parse');
+
+      await repo.save(SavedTicket(
+          number: '444444', savedAt: DateTime(2026, 7, 4), quantity: 2));
+
+      final after = await repo.all();
+      expect(after.map((t) => t.number),
+          containsAll(['111111', '222222', '333333', '444444']));
+      expect(after.length, 4, reason: 'no legacy entry may be dropped');
+
+      // Legacy entries default to one ticket; the new one keeps its quantity.
+      for (final t in after.where((t) => t.number != '444444')) {
+        expect(t.quantity, 1);
+      }
+      expect(after.firstWhere((t) => t.number == '444444').quantity, 2);
+
+      // And the loss must not have been persisted either.
+      final raw = prefs.getString('nimit.tickets.v1')!;
+      for (final n in ['111111', '222222', '333333', '444444']) {
+        expect(raw.contains(n), isTrue, reason: '$n missing from stored JSON');
+      }
+    });
+
+    test('quantity persists across a reload', () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = LocalSavedTicketsRepository(prefs);
+
+      await repo.save(SavedTicket(
+          number: '639214', savedAt: DateTime(2026, 7, 1), quantity: 5));
+
+      final reloaded = await LocalSavedTicketsRepository(prefs).all();
+      expect(reloaded.single.quantity, 5);
+    });
+
+    test('saving the same number again replaces it without duplicating',
+        () async {
+      SharedPreferences.setMockInitialValues({});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = LocalSavedTicketsRepository(prefs);
+
+      await repo.save(SavedTicket(
+          number: '639214', savedAt: DateTime(2026, 7, 1), quantity: 1));
+      await repo.save(SavedTicket(
+          number: '639214', savedAt: DateTime(2026, 7, 2), quantity: 5));
+
+      final all = await repo.all();
+      expect(all.length, 1);
+      expect(all.single.quantity, 5);
+    });
+  });
 }

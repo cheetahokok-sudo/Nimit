@@ -2,6 +2,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'local/local_repositories.dart';
+import 'lottery_checker.dart';
 import 'mock/mock_repositories.dart';
 import 'models/dream.dart';
 import 'models/fortune.dart';
@@ -73,6 +74,29 @@ final fortuneProvider = FutureProvider<FortuneData>(
 final currentDrawProvider = FutureProvider<DrawInfo>(
   (ref) => ref.watch(lotteryRepositoryProvider).currentDraw(),
 );
+
+final latestDrawProvider = FutureProvider<DrawResult>(
+  (ref) => ref.watch(lotteryRepositoryProvider).latestDraw(),
+);
+
+final recentDrawsProvider = FutureProvider<List<DrawResult>>(
+  (ref) => ref.watch(lotteryRepositoryProvider).recentDraws(),
+);
+
+final digitStatsProvider = FutureProvider<DigitStats>(
+  (ref) => ref.watch(lotteryRepositoryProvider).digitStats(),
+);
+
+/// The user's saved numbers checked against the latest announced draw.
+///
+/// Composed here rather than in the widget so the matching runs once per
+/// (draw, tickets) pair instead of on every rebuild. The match itself is pure
+/// and local — no ticket number is sent anywhere.
+final checkOutcomeProvider = FutureProvider<CheckOutcome>((ref) async {
+  final draw = await ref.watch(latestDrawProvider.future);
+  final tickets = await ref.watch(savedTicketsProvider.future);
+  return checkAll(draw, tickets);
+});
 
 final sourceTiersProvider = FutureProvider<List<SourceTier>>(
   (ref) => ref.watch(sourcesRepositoryProvider).tiers(),
@@ -147,11 +171,28 @@ class SavedTicketsNotifier extends AsyncNotifier<List<SavedTicket>> {
   Future<List<SavedTicket>> build() =>
       ref.watch(savedTicketsRepositoryProvider).all();
 
-  Future<void> save(String number) async {
-    await ref
-        .read(savedTicketsRepositoryProvider)
-        .save(SavedTicket(number: number, savedAt: DateTime.now()));
+  /// [quantity] is how many physical tickets bear this number (ซื้อเป็นชุด).
+  /// Positional [number] is kept so existing call sites compile unchanged.
+  Future<void> save(String number, {int quantity = 1}) async {
+    await ref.read(savedTicketsRepositoryProvider).save(SavedTicket(
+          number: number,
+          savedAt: DateTime.now(),
+          quantity: quantity < 1 ? 1 : quantity,
+        ));
     ref.invalidateSelf();
+  }
+
+  Future<void> setQuantity(String number, int quantity) async {
+    final tickets = await future;
+    for (final t in tickets) {
+      if (t.number == number) {
+        await ref
+            .read(savedTicketsRepositoryProvider)
+            .save(t.copyWith(quantity: quantity < 1 ? 1 : quantity));
+        ref.invalidateSelf();
+        return;
+      }
+    }
   }
 
   Future<void> remove(String number) async {

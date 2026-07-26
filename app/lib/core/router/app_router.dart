@@ -4,7 +4,11 @@ import '../../features/dream/dream_entry_screen.dart';
 import '../../features/dream/dream_result_screen.dart';
 import '../../features/fortune/fortune_screen.dart';
 import '../../features/home/home_screen.dart';
+import '../../features/lottery/lottery_history_screen.dart';
+import '../../features/lottery/lottery_me_screen.dart';
+import '../../features/lottery/lottery_prizes_screen.dart';
 import '../../features/lottery/lottery_screen.dart';
+import '../../features/lottery/lottery_stats_screen.dart';
 import '../../features/share_card/share_card_screen.dart';
 import '../../features/shell/app_shell.dart';
 import '../../features/sources/sources_screen.dart';
@@ -58,6 +62,28 @@ final appRouter = GoRouter(
           GoRoute(
             path: '/lottery',
             builder: (context, state) => const LotteryScreen(),
+            // Nested so they render inside the shell: the bottom navigation
+            // and app bar persist, matching how /dream/result behaves. These
+            // exist to keep statistics, history and the prize table from
+            // pushing the draw-day answer below the fold.
+            routes: [
+              GoRoute(
+                path: 'stats',
+                builder: (context, state) => const LotteryStatsScreen(),
+              ),
+              GoRoute(
+                path: 'me',
+                builder: (context, state) => const LotteryMeScreen(),
+              ),
+              GoRoute(
+                path: 'history',
+                builder: (context, state) => const LotteryHistoryScreen(),
+              ),
+              GoRoute(
+                path: 'prizes',
+                builder: (context, state) => const LotteryPrizesScreen(),
+              ),
+            ],
           ),
         ]),
       ],

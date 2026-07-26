@@ -33,6 +33,20 @@ jobs:
       - name: Install dependencies
         run: flutter pub get
 
+      # The service_role key bypasses RLS entirely, and RLS is the whole
+      # security model here. It belongs only in lottery-ingest.yml. This build
+      # produces a PUBLIC JS bundle, so anything that reaches app/ is published
+      # — fail loudly rather than discover it in someone's devtools.
+      - name: No service-role key may reach the web bundle
+        working-directory: .
+        run: |
+          if grep -rIn --exclude-dir=build --exclude-dir=.dart_tool \
+               -e 'service_role' -e 'SUPABASE_SERVICE' app/; then
+            echo "::error::A service-role reference exists under app/. It must never ship in the web bundle."
+            exit 1
+          fi
+          echo "clean: no service-role reference under app/"
+
       # Gate the deploy on the same checks used locally — a red build
       # must not reach the public URL.
       - name: Analyze

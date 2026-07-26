@@ -114,21 +114,106 @@ class MockFortuneRepository implements FortuneRepository {
   }
 }
 
+/// Demo draw used before a Supabase connection is configured.
+///
+/// Two deliberate properties, both of which have bitten this kind of fixture
+/// before:
+///
+///  * the date is FIXED, not derived from `DateTime.now()`, so widget tests do
+///    not drift with the calendar;
+///  * the numbers are chosen NOT to win against anything the app demonstrates.
+///    This fixture is what every user sees until remote is enabled, and a demo
+///    that congratulates a stranger on six million baht is a support incident.
+///    Stacking fixtures belong in lottery_checker_test.dart, as literals.
 class MockLotteryRepository implements LotteryRepository {
+  static final _drawDate = DateTime(2026, 8, 1);
+
   @override
   Future<DrawInfo> currentDraw() async {
     await Future<void>.delayed(_latency);
     return DrawInfo(
       drawDate: nextDrawDate(DateTime.now()),
-      isAnnounced: false,
       statusTh: 'รอประกาศจากสำนักงานสลากกินแบ่งรัฐบาล',
+      status: DrawStatus.scheduled,
+      estimated: true,
     );
   }
 
   @override
-  Future<String> check(String number) async {
+  Future<DrawResult> latestDraw() async {
     await Future<void>.delayed(_latency);
-    return 'ยังไม่ประกาศผลงวดนี้ บันทึกเลขไว้แล้วระบบจะช่วยตรวจให้ทันทีที่มีผลอย่างเป็นทางการ';
+    return _demoDraw();
+  }
+
+  @override
+  Future<List<DrawResult>> recentDraws({int limit = 12}) async {
+    await Future<void>.delayed(_latency);
+    return [_demoDraw()];
+  }
+
+  @override
+  Future<DigitStats> digitStats({int windowDraws = 24}) async {
+    await Future<void>.delayed(_latency);
+    return DigitStats(
+      windowDraws: 1,
+      last2: [
+        for (var i = 0; i < 100; i++)
+          Last2Bucket(
+            number: i.toString().padLeft(2, '0'),
+            count: i == 47 ? 1 : 0,
+            lastSeen: i == 47 ? _drawDate : null,
+          ),
+      ],
+      positionDigits: [
+        for (var p = 0; p < 6; p++) [for (var d = 0; d < 10; d++) 0],
+      ],
+      neverSeenLast2: 99,
+      noteTh: 'สถิติคือสิ่งที่เคยออกมาแล้ว ไม่ใช่สิ่งที่จะออกงวดหน้า '
+          'การออกรางวัลแต่ละงวดสุ่มใหม่ทั้งหมด ทุกเลขมีโอกาสเท่ากันเสมอ',
+      sourceTh: 'ข้อมูลตัวอย่างสำหรับทดลองใช้งาน',
+    );
+  }
+
+  DrawResult _demoDraw() {
+    PrizeTierResult t(String code, String name, String short, int amount,
+            MatchKind kind, List<String> numbers, int sort) =>
+        PrizeTierResult(
+          code: code,
+          nameTh: name,
+          shortNameTh: short,
+          amountThb: amount,
+          winnerCount: numbers.length,
+          matchKind: kind,
+          sort: sort,
+          numbers: numbers,
+        );
+
+    return DrawResult(
+      drawDate: _drawDate,
+      periodLabelTh: 'งวดวันที่ 1 สิงหาคม 2569 (ตัวอย่าง)',
+      status: DrawStatus.announced,
+      resultRevision: 0,
+      // False on purpose: this fixture carries a handful of numbers, not 173,
+      // so the app must refuse to declare any ticket a loser against it.
+      complete: false,
+      hasUnreadableTier: false,
+      dutyRate: 0.005,
+      prizes: [
+        t('first', 'รางวัลที่ 1', 'ที่ 1', 6000000, MatchKind.exact6,
+            ['482913'], 10),
+        t('near_first', 'รางวัลข้างเคียงรางวัลที่ 1', 'ข้างเคียง', 100000,
+            MatchKind.exact6, ['482912', '482914'], 20),
+        t('front3', 'รางวัลเลขหน้า 3 ตัว', 'หน้า 3 ตัว', 4000,
+            MatchKind.prefix3, ['517', '063'], 70),
+        t('last3', 'รางวัลเลขท้าย 3 ตัว', 'ท้าย 3 ตัว', 4000,
+            MatchKind.suffix3, ['390', '628'], 80),
+        t('last2', 'รางวัลเลขท้าย 2 ตัว', 'ท้าย 2 ตัว', 2000,
+            MatchKind.suffix2, ['47'], 90),
+      ],
+      sourceCustodianTh: 'สำนักงานสลากกินแบ่งรัฐบาล (ข้อมูลตัวอย่าง)',
+      nextDrawDate: DateTime(2026, 8, 16),
+      nextDrawEstimated: true,
+    );
   }
 }
 

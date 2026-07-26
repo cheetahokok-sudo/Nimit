@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nimit/data/models/dream.dart';
+import 'package:nimit/data/models/lottery.dart';
 import 'package:nimit/data/models/source.dart';
 
 void main() {
@@ -128,6 +129,90 @@ void main() {
       expect(decoded.analysis, isNotNull);
       expect(decoded.analysis!.headlineTh, 'งูสีขาว');
       expect(decoded.analysis!.symbols.single.count, 6);
+    });
+  });
+
+  group('SavedTicket.quantity is additive and cannot break old payloads', () {
+    // Devices already hold nimit.tickets.v1 entries written before `quantity`
+    // existed. If parsing one throws, _decodeListOrEmpty SKIPS it and the next
+    // save() rewrites the list without it — the user's numbers are gone,
+    // silently and permanently. These tests pin the behaviour that prevents it.
+    test('a legacy entry with no quantity reads as 1', () {
+      final t = SavedTicket.fromJson({
+        'number': '639214',
+        'savedAt': '2026-07-01T10:00:00.000',
+      });
+      expect(t.quantity, 1);
+      expect(t.number, '639214');
+    });
+
+    test('quantity round-trips through JSON', () {
+      final t = SavedTicket(
+          number: '639214', savedAt: DateTime(2026, 7, 1), quantity: 5);
+      final decoded =
+          SavedTicket.fromJson(jsonDecode(jsonEncode(t.toJson())));
+      expect(decoded.quantity, 5);
+      expect(decoded.number, '639214');
+      expect(decoded.savedAt, t.savedAt);
+    });
+
+    test('a quantity stored as a double parses (web JSON yields 2.0)', () {
+      final t = SavedTicket.fromJson({
+        'number': '639214',
+        'savedAt': '2026-07-01T10:00:00.000',
+        'quantity': 2.0,
+      });
+      expect(t.quantity, 2);
+    });
+
+    test('a corrupt quantity clamps to 1 rather than zeroing a win', () {
+      for (final bad in [0, -3]) {
+        final t = SavedTicket.fromJson({
+          'number': '639214',
+          'savedAt': '2026-07-01T10:00:00.000',
+          'quantity': bad,
+        });
+        expect(t.quantity, 1);
+      }
+    });
+
+    test('a null quantity reads as 1', () {
+      final t = SavedTicket.fromJson({
+        'number': '639214',
+        'savedAt': '2026-07-01T10:00:00.000',
+        'quantity': null,
+      });
+      expect(t.quantity, 1);
+    });
+  });
+
+  group('DrawStatus fails closed', () {
+    test('unknown codes never resolve to announced', () {
+      for (final code in [null, '', 'ANNOUNCED', 'Announced', 'partial ', 'x']) {
+        expect(DrawStatus.fromCode(code), isNot(DrawStatus.announced),
+            reason: 'code "$code" must not resolve to announced');
+      }
+    });
+
+    test('known codes resolve exactly', () {
+      expect(DrawStatus.fromCode('announced'), DrawStatus.announced);
+      expect(DrawStatus.fromCode('partial'), DrawStatus.partial);
+      expect(DrawStatus.fromCode('scheduled'), DrawStatus.scheduled);
+    });
+  });
+
+  group('MatchKind refuses to guess', () {
+    test('an unknown rule is null, not a default', () {
+      expect(MatchKind.fromCode('middle4'), isNull);
+      expect(MatchKind.fromCode(null), isNull);
+      expect(MatchKind.fromCode(''), isNull);
+    });
+
+    test('known rules resolve exactly', () {
+      expect(MatchKind.fromCode('exact6'), MatchKind.exact6);
+      expect(MatchKind.fromCode('prefix3'), MatchKind.prefix3);
+      expect(MatchKind.fromCode('suffix3'), MatchKind.suffix3);
+      expect(MatchKind.fromCode('suffix2'), MatchKind.suffix2);
     });
   });
 }

@@ -28,11 +28,27 @@ abstract interface class FortuneRepository {
   Future<FortuneData> fetch();
 }
 
+/// Official draw results. Facts only.
+///
+/// There is deliberately no `check(number)` here. A repository that returned a
+/// ready-made Thai sentence is exactly what produced the old screen's hardcoded
+/// `ยังไม่ประกาศ` pill: the UI had no data to compute a status from, so someone
+/// typed a constant that was wrong for every ticket. Matching now happens
+/// on-device in `lottery_checker.dart`, which also keeps the user's numbers off
+/// the network.
 abstract interface class LotteryRepository {
+  /// Banner state. Must succeed even when no result exists — that is the state
+  /// it is most needed in.
   Future<DrawInfo> currentDraw();
 
-  /// Returns a Thai status message for the checked [number].
-  Future<String> check(String number);
+  /// The latest ANNOUNCED draw, with all 173 numbers and their prize amounts.
+  Future<DrawResult> latestDraw();
+
+  /// Recent announced draws, newest first, for history and personal statistics.
+  Future<List<DrawResult>> recentDraws({int limit = 12});
+
+  /// Digit frequency over a window of past draws.
+  Future<DigitStats> digitStats({int windowDraws = 24});
 }
 
 abstract interface class SourcesRepository {
