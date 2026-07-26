@@ -554,6 +554,45 @@ select pg_temp.expect_eq(
       and routine_name = 'analyze_dream') > 0, true,
   'anon CAN execute api.analyze_dream (the product front door)');
 
+-- Span resolution: shorter terms of OTHER symbols must not fire inside a
+-- longer claimed match. Found live: ท้อง (pregnancy) fired inside ท้องฟ้า
+-- (sky), so a dream about the sky reported a pregnancy omen.
+do $$
+declare payload jsonb;
+begin
+  payload := api.analyze_dream('ฝันว่าท้องฟ้าแจ่มใสสวยงามมาก');
+  if exists (
+    select 1 from jsonb_array_elements(payload -> 'symbols') e
+    where e ->> 'slug' = 'pregnancy'
+  ) then
+    raise exception 'FAIL: ท้อง fired inside ท้องฟ้า — span suppression broken';
+  end if;
+  if not exists (
+    select 1 from jsonb_array_elements(payload -> 'symbols') e
+    where e ->> 'slug' = 'sky'
+  ) then
+    raise exception 'FAIL: sky not matched for ท้องฟ้า';
+  end if;
+  perform pg_temp.log_pass('shorter foreign terms suppressed inside longer spans');
+end $$;
+
+-- Equal spans stay dual: the same compound term deliberately mapped to two
+-- symbols must surface both (ม้านิลมังกร → horse AND dragon).
+do $$
+declare payload jsonb;
+begin
+  payload := api.analyze_dream('ฝันเห็นม้านิลมังกรบินอยู่บนฟ้า');
+  if not (
+    exists (select 1 from jsonb_array_elements(payload -> 'symbols') e
+             where e ->> 'slug' = 'horse')
+    and exists (select 1 from jsonb_array_elements(payload -> 'symbols') e
+                 where e ->> 'slug' = 'dragon')
+  ) then
+    raise exception 'FAIL: equal-span dual mapping lost — ม้านิลมังกร must surface horse AND dragon';
+  end if;
+  perform pg_temp.log_pass('equal-span compounds still surface both symbols');
+end $$;
+
 do $$ begin
   raise notice '';
   raise notice '==========================================';
