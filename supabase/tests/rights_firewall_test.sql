@@ -239,9 +239,25 @@ select pg_temp.expect_eq(
     where term_norm = content.norm_th('งูเหลือม') limit 1),
   'งูเหลือม', 'compound term indexed distinctly from the generic term');
 
+-- Draft exclusion, checked against a fixture this test owns rather than
+-- against seed state. The previous version asserted that a search for งู
+-- returned nothing "while all symbols are draft" — true only until the library
+-- was published, at which point a correct system would have failed the test.
+-- A test that breaks when the product starts working is testing the wrong
+-- thing.
+insert into content.symbol_term (symbol_id, term, kind, weight)
+select id, 'สัญลักษณ์ทดสอบเฉพาะกิจ', 'primary', 100
+  from content.symbol where concept_key = 'T_SYM';
+
 select pg_temp.expect_eq(
-  (select count(*)::int from api.search_symbols('งู', 30)), 0,
-  'search returns nothing while all symbols are draft (published-only)');
+  (select count(*)::int from api.search_symbols('สัญลักษณ์ทดสอบเฉพาะกิจ', 30)), 0,
+  'search excludes a DRAFT symbol');
+
+update content.symbol set status = 'published' where concept_key = 'T_SYM';
+
+select pg_temp.expect_eq(
+  (select slug from api.search_symbols('สัญลักษณ์ทดสอบเฉพาะกิจ', 5) limit 1), 't-sym',
+  'search finds the same symbol once PUBLISHED');
 
 update content.symbol set status = 'published' where concept_key = 'DREAM_SNAKE';
 
