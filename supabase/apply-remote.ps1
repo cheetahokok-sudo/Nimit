@@ -78,13 +78,43 @@ if ($LASTEXITCODE -ne 0) { Write-Error "supabase db push failed." }
 # ---------------------------------------------------------------------------
 if (-not $SkipSeeds) {
   Write-Host "`n== Seeds ==" -ForegroundColor Cyan
+  # PGCLIENTENCODING is mandatory on Windows: psql defaults to WIN1252 here and
+  # every one of these files is full of Thai, which fails with
+  # "character with byte sequence 0x81 ... has no equivalent in encoding UTF8".
   $env:PGCLIENTENCODING = 'UTF8'
+
+  # THIS LIST MUST MATCH .github/workflows/db-verify.yml, IN ORDER.
+  # It drifted badly once (5 of 18 files), which meant a database applied with
+  # this script and a database verified by CI were different databases —
+  # notably lottery_reference_v1.sql was missing, and without it
+  # api.lottery_ingest rejects every payload with "ยังไม่ได้ลงทะเบียนแหล่งข้อมูล
+  # glo-api". If you add a seed, add it in both places.
+  #
+  # Order is load-bearing: provenance before content, and publish_v1 before the
+  # interpretation sets, because those publish their own rows and need the
+  # work/edition chain published first. All files carry on-conflict guards, so
+  # re-running against a live project is safe. publish_v1 touches only
+  # work/edition/symbol — it will NOT publish draft interpretations.
   $seeds = @(
     'supabase/seed.sql',
     'supabase/seeds/sources_v1.sql',
     'supabase/seeds/sources_v2_research.sql',
     'supabase/seeds/sources_v3_legal_corrections.sql',
-    'supabase/seeds/dream_symbols_v1.sql'
+    'supabase/seeds/sources_v4_tipitaka.sql',
+    'supabase/seeds/sources_v5_wisan_research.sql',
+    'supabase/seeds/dream_symbols_v1.sql',
+    'supabase/seeds/lottery_reference_v1.sql',
+    'supabase/seeds/publish_v1.sql',
+    'supabase/seeds/interpretations_v1.sql',
+    'supabase/seeds/interpretations_v2_subinasutta.sql',
+    'supabase/seeds/dream_symbols_v2_gapfill.sql',
+    'supabase/seeds/interpretations_v3_plain_summaries.sql',
+    'supabase/seeds/dream_symbols_v3_colors_weather.sql',
+    'supabase/seeds/sources_v6_pramuan.sql',
+    'supabase/seeds/dream_symbols_v4_body_omens.sql',
+    'supabase/seeds/interpretations_v4_krachamen.sql',
+    'supabase/seeds/sources_v7_owned_library.sql',
+    'supabase/seeds/interpretations_v5_owned_books_template.sql'
   )
   foreach ($s in $seeds) {
     Write-Host "  applying $s"
@@ -111,6 +141,13 @@ select 'works=' || (select count(*) from content.work)
     || ' interpretations=' || (select count(*) from content.interpretation);
 "@
 
+& $psql $DbUrl -t -c @"
+select 'lottery: prize_tiers=' || (select count(*) from lottery.prize_tier)
+    || ' (must be 9)  pool=' || (select sum(amount_thb * winner_count) from lottery.prize_tier where effective_to is null)
+    || ' (must be 12018000)  draws=' || (select count(*) from lottery.draw)
+    || '  results=' || (select count(*) from lottery.result);
+"@
+
 Write-Host @"
 
 Done. Three settings must still be changed by hand in the dashboard — the
@@ -123,5 +160,14 @@ migrations cannot set them, and each silently undoes part of the design:
      RPC-only read design entirely.
   3. Project Settings -> API -> Max rows: set to 100.
      A global backstop in case a view is ever exposed by mistake.
+
+For ตรวจหวย, two more steps happen outside this script:
+
+  4. GitHub -> Settings -> Secrets and variables -> Actions -> Secrets:
+     add SUPABASE_SERVICE_ROLE_KEY. A SECRET, not a variable — it bypasses RLS
+     entirely, unlike the anon key which ships in the JS bundle by design.
+  5. GitHub -> Actions -> "Ingest lottery results" -> Run workflow
+     with mode=backfill to load ~2 years of history. Takes a few minutes;
+     it pauses 2s between calls to stay polite to a government API.
 
 "@ -ForegroundColor Yellow
