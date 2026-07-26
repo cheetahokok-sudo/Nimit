@@ -90,5 +90,8 @@ jobs:
       - name: Apply first content set (Mahasupina interpretations)
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/interpretations_v1.sql
 
+      - name: Apply second content set (Subina Sutta interpretations)
+        run: psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/interpretations_v2_subinasutta.sql
+
       - name: Assertion suite (published state)
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/rights_firewall_test.sql

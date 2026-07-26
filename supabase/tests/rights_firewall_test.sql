@@ -457,12 +457,15 @@ begin
 end $$;
 
 -- Buddhist canon must NEVER produce number associations — permanent policy,
--- asserted so a future seed cannot quietly cross the line.
+-- asserted so a future seed cannot quietly cross the line. Covers every
+-- canonical edition (citekey tipitaka-*) and the whole buddhist-canon
+-- tradition, not just the first text ingested.
 select pg_temp.expect_eq(
   (select count(*)::int from content.number_association n
-     join content.passage p on p.id = n.passage_id
-     join content.edition e on e.id = p.edition_id
-    where e.citekey = 'tipitaka-27-77'), 0,
+     left join content.passage p on p.id = n.passage_id
+     left join content.edition e on e.id = p.edition_id
+     left join content.tradition tr on tr.id = n.tradition_id
+    where e.citekey like 'tipitaka-%' or tr.slug = 'buddhist-canon'), 0,
   'no number associations derive from Buddhist canonical text');
 
 -- Seed idempotency: the acquisition tracker must have a unique constraint so
