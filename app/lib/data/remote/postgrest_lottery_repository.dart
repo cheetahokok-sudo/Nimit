@@ -76,6 +76,29 @@ class PostgrestLotteryRepository implements LotteryRepository {
   }
 
   @override
+  Future<List<DrawSummary>> history({int limit = 48}) async {
+    final decoded = await _rpc('lottery_history', {'p_limit': limit});
+    final rows = decoded as List<dynamic>? ?? const [];
+    return [
+      for (final r in rows) DrawSummary.fromJson(r as Map<String, dynamic>),
+    ];
+  }
+
+  @override
+  Future<DrawResult> drawFor(DateTime date) async {
+    // Date-only string: a งวด is a calendar day in Thailand, and sending an
+    // instant would shift it for a user in another timezone.
+    final iso = '${date.year.toString().padLeft(4, '0')}-'
+        '${date.month.toString().padLeft(2, '0')}-'
+        '${date.day.toString().padLeft(2, '0')}';
+    final decoded = await _rpc('lottery_draw', {'p_draw_date': iso});
+    if (decoded is! Map<String, dynamic>) {
+      throw Exception('lottery_draw returned no draw for $iso');
+    }
+    return DrawResult.fromJson(decoded);
+  }
+
+  @override
   Future<DigitStats> digitStats({int windowDraws = 24}) async {
     final decoded = await _rpc('lottery_digit_stats', {'p_window': windowDraws});
     return DigitStats.fromJson(decoded as Map<String, dynamic>);

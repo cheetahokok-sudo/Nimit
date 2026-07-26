@@ -201,6 +201,55 @@ void main() {
     });
   });
 
+  group('DrawSummary — the light history row', () {
+    test('parses the compact payload including a leading-zero prize', () {
+      final s = DrawSummary.fromJson({
+        'drawDate': '2024-12-16',
+        'labelTh': '16 ธันวาคม 2567',
+        'yearBe': 2567,
+        'first': '097863',
+        'last2': '21',
+        'complete': true,
+      });
+      expect(s.drawDate, DateTime(2024, 12, 16));
+      expect(s.yearBe, 2567);
+      // Must stay a String — '097863' is not 97863.
+      expect(s.firstPrize, '097863');
+      expect(s.last2, '21');
+      expect(s.complete, isTrue);
+    });
+
+    test('tolerates a งวด whose prize numbers are absent', () {
+      final s = DrawSummary.fromJson({
+        'drawDate': '2026-08-01',
+        'labelTh': '1 สิงหาคม 2569',
+        'yearBe': 2569,
+        'first': null,
+        'last2': null,
+        'complete': false,
+      });
+      expect(s.firstPrize, isNull);
+      expect(s.complete, isFalse);
+    });
+
+    test('the year changes across a งวด boundary, which is what groups the list',
+        () {
+      // Two draws per month means a month name appears twice in a row. Without
+      // a year heading that reads as duplicated rows — an actual user report.
+      final dec = DrawSummary.fromJson({
+        'drawDate': '2024-12-16',
+        'labelTh': '16 ธันวาคม 2567',
+        'yearBe': 2567,
+      });
+      final jan = DrawSummary.fromJson({
+        'drawDate': '2025-01-02',
+        'labelTh': '2 มกราคม 2568',
+        'yearBe': 2568,
+      });
+      expect(dec.yearBe, isNot(jan.yearBe));
+    });
+  });
+
   group('MatchKind refuses to guess', () {
     test('an unknown rule is null, not a default', () {
       expect(MatchKind.fromCode('middle4'), isNull);

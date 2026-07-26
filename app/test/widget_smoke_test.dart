@@ -305,6 +305,20 @@ class _FixtureLotteryRepository implements LotteryRepository {
   Future<List<DrawResult>> recentDraws({int limit = 12}) async => [_draw()];
 
   @override
+  Future<List<DrawSummary>> history({int limit = 48}) async => [
+        DrawSummary(
+          drawDate: DateTime(2026, 7, 16),
+          labelTh: '16 กรกฎาคม 2569',
+          yearBe: 2569,
+          firstPrize: '639214',
+          last2: '71',
+        ),
+      ];
+
+  @override
+  Future<DrawResult> drawFor(DateTime date) async => _draw();
+
+  @override
   Future<DigitStats> digitStats({int windowDraws = 24}) async => const
       DigitStats(
     windowDraws: 1,

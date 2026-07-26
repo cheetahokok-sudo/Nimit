@@ -721,8 +721,30 @@ select pg_temp.expect_eq(
   (select count(distinct routine_name)::int from information_schema.role_routine_grants
     where grantee = 'anon' and routine_schema = 'api'
       and routine_name in ('lottery_draw','lottery_recent_draws',
-                           'lottery_calendar','lottery_digit_stats')), 4,
-  'anon CAN execute all four lottery read functions');
+                           'lottery_calendar','lottery_digit_stats',
+                           'lottery_history')), 5,
+  'anon CAN execute all five lottery read functions');
+
+-- The light list must stay light. It exists because two years of full draws is
+-- ~208 KB, which is the wrong thing to send a phone on mobile data for a list
+-- showing two numbers per row. If someone later adds the number arrays back,
+-- this fails.
+do $$
+declare row1 jsonb;
+begin
+  row1 := api.lottery_history(1) -> 0;
+  if row1 is null then
+    perform pg_temp.log_pass('lottery_history returns empty on a draw-less database (no fixture here)');
+    return;
+  end if;
+  if row1 ? 'prizes' or row1 ? 'numbers' then
+    raise exception 'FAIL: lottery_history leaked full prize data into the light list';
+  end if;
+  if not (row1 ? 'yearBe') then
+    raise exception 'FAIL: lottery_history must emit yearBe for year grouping';
+  end if;
+  perform pg_temp.log_pass('lottery_history stays light and carries yearBe for grouping');
+end $$;
 
 -- service_role holds no table DML: the entire write surface is one function.
 select pg_temp.expect_eq(

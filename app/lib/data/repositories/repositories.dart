@@ -44,8 +44,18 @@ abstract interface class LotteryRepository {
   /// The latest ANNOUNCED draw, with all 173 numbers and their prize amounts.
   Future<DrawResult> latestDraw();
 
-  /// Recent announced draws, newest first, for history and personal statistics.
+  /// Recent announced draws, newest first, WITH all their numbers.
+  ///
+  /// Heavy (~4 KB each) because it carries every winning number, so it is used
+  /// only where the numbers are actually needed — matching saved tickets for
+  /// personal statistics. For a browsable list use [history] instead.
   Future<List<DrawResult>> recentDraws({int limit = 12});
+
+  /// Light list for ผลย้อนหลัง: date, รางวัลที่ 1, เลขท้าย 2 ตัว.
+  Future<List<DrawSummary>> history({int limit = 48});
+
+  /// Full detail for one งวด, fetched when a history row is expanded.
+  Future<DrawResult> drawFor(DateTime date);
 
   /// Digit frequency over a window of past draws.
   Future<DigitStats> digitStats({int windowDraws = 24});

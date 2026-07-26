@@ -87,6 +87,16 @@ final digitStatsProvider = FutureProvider<DigitStats>(
   (ref) => ref.watch(lotteryRepositoryProvider).digitStats(),
 );
 
+/// Two years of draws as a light list (~6 KB). The heavy per-draw detail is
+/// loaded on demand by [drawByDateProvider] when a row is expanded.
+final lotteryHistoryProvider = FutureProvider<List<DrawSummary>>(
+  (ref) => ref.watch(lotteryRepositoryProvider).history(),
+);
+
+final drawByDateProvider =
+    FutureProvider.family<DrawResult, DateTime>((ref, date) =>
+        ref.watch(lotteryRepositoryProvider).drawFor(date));
+
 /// The user's saved numbers checked against the latest announced draw.
 ///
 /// Composed here rather than in the widget so the matching runs once per

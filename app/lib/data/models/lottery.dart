@@ -289,6 +289,43 @@ class BudgetState {
       );
 }
 
+/// One row of the ผลย้อนหลัง list.
+///
+/// Deliberately NOT a [DrawResult]. A full draw is ~4 KB because it carries all
+/// 173 numbers; two years of them is over 200 KB, which is a poor thing to send
+/// to a phone on mobile data for a list that shows two numbers per row. This
+/// carries ~140 bytes, and the full detail is fetched per draw only when a row
+/// is expanded.
+class DrawSummary {
+  const DrawSummary({
+    required this.drawDate,
+    required this.labelTh,
+    required this.yearBe,
+    this.firstPrize,
+    this.last2,
+    this.complete = true,
+  });
+
+  final DateTime drawDate;
+  final String labelTh;
+
+  /// Buddhist-era year, used to group the list. Two draws a month otherwise
+  /// reads as duplicated rows.
+  final int yearBe;
+  final String? firstPrize;
+  final String? last2;
+  final bool complete;
+
+  factory DrawSummary.fromJson(Map<String, dynamic> json) => DrawSummary(
+        drawDate: DateTime.parse(json['drawDate'] as String),
+        labelTh: json['labelTh'] as String? ?? '',
+        yearBe: (json['yearBe'] as num?)?.toInt() ?? 0,
+        firstPrize: json['first'] as String?,
+        last2: json['last2'] as String?,
+        complete: json['complete'] as bool? ?? true,
+      );
+}
+
 /// One bucket of the เลขท้าย 2 ตัว frequency table.
 class Last2Bucket {
   const Last2Bucket({required this.number, required this.count, this.lastSeen});

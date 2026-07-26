@@ -152,6 +152,27 @@ class MockLotteryRepository implements LotteryRepository {
   }
 
   @override
+  Future<List<DrawSummary>> history({int limit = 48}) async {
+    await Future<void>.delayed(_latency);
+    return [
+      DrawSummary(
+        drawDate: _drawDate,
+        labelTh: '1 สิงหาคม 2569',
+        yearBe: 2569,
+        firstPrize: '482913',
+        last2: '47',
+        complete: false,
+      ),
+    ];
+  }
+
+  @override
+  Future<DrawResult> drawFor(DateTime date) async {
+    await Future<void>.delayed(_latency);
+    return _demoDraw();
+  }
+
+  @override
   Future<DigitStats> digitStats({int windowDraws = 24}) async {
     await Future<void>.delayed(_latency);
     return DigitStats(
