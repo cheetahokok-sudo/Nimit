@@ -558,44 +558,62 @@ select pg_temp.expect_eq(
 -- longer claimed match. Found live: ท้อง (pregnancy) fired inside ท้องฟ้า
 -- (sky), so a dream about the sky reported a pregnancy omen.
 --
--- analyze_dream only sees PUBLISHED symbols, and this suite runs in both the
--- draft and published CI states — so publish the fixtures the assertion needs
--- rather than depending on seed state. The surrounding transaction rolls back.
-update content.symbol set status = 'published'
- where concept_key in ('DREAM_SKY','DREAM_PREGNANCY','DREAM_HORSE','DREAM_DRAGON');
+-- These assertions test the MATCHING ALGORITHM, so they build their own
+-- fixtures rather than relying on seed content. An earlier version used the
+-- real ท้อง/ท้องฟ้า pair and passed against the live database but failed in
+-- CI's draft state, where the lexicon adding ท้องฟ้า had not been applied yet
+-- — so ท้อง fired legitimately, with nothing longer to suppress it. A test
+-- that depends on which seeds happen to have run is testing the fixtures, not
+-- the code. The surrounding transaction rolls all of this back.
+
+insert into content.symbol (concept_key, slug, name_th, category_id, status)
+select v.k, v.s, v.n, c.id, 'published'
+from (values
+  ('T_SPAN_LONG',  't-span-long',  'คำทดสอบยาว'),
+  ('T_SPAN_SHORT', 't-span-short', 'คำทดสอบสั้น'),
+  ('T_DUAL_A',     't-dual-a',     'คู่ทดสอบเอ'),
+  ('T_DUAL_B',     't-dual-b',     'คู่ทดสอบบี')
+) as v(k, s, n)
+cross join (select id from content.category where slug = 'dream-symbols' limit 1) c;
+
+insert into content.symbol_term (symbol_id, term, kind, weight)
+select s.id, v.term, 'primary', 100
+from (values
+  -- 'ฟ้าทดสอบยาว' strictly contains 'ทดสอบ': the short term must be suppressed.
+  ('T_SPAN_LONG',  'ฟ้าทดสอบยาว'),
+  ('T_SPAN_SHORT', 'ทดสอบ'),
+  -- Identical term on two symbols: an equal span must surface BOTH.
+  ('T_DUAL_A',     'สัตว์ผสมทดสอบ'),
+  ('T_DUAL_B',     'สัตว์ผสมทดสอบ')
+) as v(k, term)
+join content.symbol s on s.concept_key = v.k;
 
 do $$
 declare payload jsonb;
 begin
-  payload := api.analyze_dream('ฝันว่าท้องฟ้าแจ่มใสสวยงามมาก');
-  if exists (
-    select 1 from jsonb_array_elements(payload -> 'symbols') e
-    where e ->> 'slug' = 'pregnancy'
-  ) then
-    raise exception 'FAIL: ท้อง fired inside ท้องฟ้า — span suppression broken';
+  payload := api.analyze_dream('เมื่อคืนฝันเห็นฟ้าทดสอบยาวลอยอยู่');
+  if exists (select 1 from jsonb_array_elements(payload -> 'symbols') e
+              where e ->> 'slug' = 't-span-short') then
+    raise exception
+      'FAIL: a shorter foreign term fired inside a longer claimed span';
   end if;
-  if not exists (
-    select 1 from jsonb_array_elements(payload -> 'symbols') e
-    where e ->> 'slug' = 'sky'
-  ) then
-    raise exception 'FAIL: sky not matched for ท้องฟ้า';
+  if not exists (select 1 from jsonb_array_elements(payload -> 'symbols') e
+                  where e ->> 'slug' = 't-span-long') then
+    raise exception 'FAIL: the longer term did not match at all';
   end if;
   perform pg_temp.log_pass('shorter foreign terms suppressed inside longer spans');
 end $$;
 
--- Equal spans stay dual: the same compound term deliberately mapped to two
--- symbols must surface both (ม้านิลมังกร → horse AND dragon).
 do $$
 declare payload jsonb;
 begin
-  payload := api.analyze_dream('ฝันเห็นม้านิลมังกรบินอยู่บนฟ้า');
-  if not (
-    exists (select 1 from jsonb_array_elements(payload -> 'symbols') e
-             where e ->> 'slug' = 'horse')
-    and exists (select 1 from jsonb_array_elements(payload -> 'symbols') e
-                 where e ->> 'slug' = 'dragon')
-  ) then
-    raise exception 'FAIL: equal-span dual mapping lost — ม้านิลมังกร must surface horse AND dragon';
+  payload := api.analyze_dream('เมื่อคืนฝันเห็นสัตว์ผสมทดสอบบินอยู่');
+  if not (exists (select 1 from jsonb_array_elements(payload -> 'symbols') e
+                   where e ->> 'slug' = 't-dual-a')
+      and exists (select 1 from jsonb_array_elements(payload -> 'symbols') e
+                   where e ->> 'slug' = 't-dual-b')) then
+    raise exception
+      'FAIL: equal-span dual mapping lost — one term on two symbols must surface both';
   end if;
   perform pg_temp.log_pass('equal-span compounds still surface both symbols');
 end $$;
