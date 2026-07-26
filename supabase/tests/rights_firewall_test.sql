@@ -557,6 +557,13 @@ select pg_temp.expect_eq(
 -- Span resolution: shorter terms of OTHER symbols must not fire inside a
 -- longer claimed match. Found live: ท้อง (pregnancy) fired inside ท้องฟ้า
 -- (sky), so a dream about the sky reported a pregnancy omen.
+--
+-- analyze_dream only sees PUBLISHED symbols, and this suite runs in both the
+-- draft and published CI states — so publish the fixtures the assertion needs
+-- rather than depending on seed state. The surrounding transaction rolls back.
+update content.symbol set status = 'published'
+ where concept_key in ('DREAM_SKY','DREAM_PREGNANCY','DREAM_HORSE','DREAM_DRAGON');
+
 do $$
 declare payload jsonb;
 begin
