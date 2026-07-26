@@ -111,5 +111,11 @@ jobs:
           psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/dream_symbols_v4_body_omens.sql
           psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/interpretations_v4_krachamen.sql
 
+      # Owned-library workflow: holdings, corrected classifications, template.
+      - name: Apply owned-library sources and template
+        run: |
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/sources_v7_owned_library.sql
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/interpretations_v5_owned_books_template.sql
+
       - name: Assertion suite (published state)
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/rights_firewall_test.sql
