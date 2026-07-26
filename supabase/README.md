@@ -54,6 +54,42 @@ set them, and each one silently undoes part of the design if missed:
 3. **PostgREST `max-rows` = 100.** A global backstop for the case where a view
    is exposed by mistake.
 
+## Finding your tables in the dashboard
+
+**The Table Editor opens on the `public` schema, which is empty. Nothing is
+broken — none of this project's tables belong there.**
+
+| Schema | Contains | Visible in Table Editor? |
+|---|---|---|
+| `public` | nothing (until Phase 4 user data) | yes, and empty |
+| `content` | 13 tables — work, edition, passage, symbol, symbol_term, interpretation, … | yes, after switching schema |
+| `editorial` | 5 tables — source_excerpt, scan_ref, rights_grant, acquisition, editor_note | yes, after switching schema |
+| `ops` | 1 table — api_access | yes, after switching schema |
+| `api` | 3 views — tier_definition, library_stats, category | yes, after switching schema |
+
+**To see them:** Table Editor → the schema dropdown at the top-left (it reads
+`public`) → pick `content`.
+
+The dashboard connects as a privileged role, so it bypasses RLS and shows
+everything. That is expected and is not a hole — the anon key cannot do this,
+which is what the deployment checks verified.
+
+### Do NOT "fix" the Security Advisor warnings
+
+Supabase's advisor will flag every table in `content`, `editorial` and `ops`
+with something like *"RLS is enabled but no policies exist"*, and offer to help
+you add one.
+
+**That warning is describing the design working correctly.** RLS with zero
+policies is deny-all, and it is one of the two locks protecting the library —
+the other being revoked grants. Adding a permissive policy to silence the
+advisor would hand the entire corpus to anyone holding the anon key, which is
+published in the web bundle.
+
+The only intended read path is the `api.*` functions, which are
+`security definer` and carry their own filters. If you ever genuinely need a new
+access route, add an `api` function — never a policy on a `content` table.
+
 ## The three ideas worth understanding
 
 ### Rights live on two axes, not one
