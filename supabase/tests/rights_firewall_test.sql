@@ -284,11 +284,57 @@ select pg_temp.expect_eq(
     where schemaname in ('content','editorial','ops')), 0,
   'no permissive policies exist on protected tables');
 
+-- Assert on the ACL itself, not on a role grant and not on an HTTP status.
+--
+-- The original version of this check only looked for an `anon` grant, and
+-- passed while PUBLIC still held EXECUTE — which anon inherits. A live probe
+-- appeared to confirm the block, but the 500 it returned was the function's own
+-- 'symbol not found', not a permission denial. Two different mistakes agreeing
+-- with each other is not corroboration.
+--
+-- In PostgreSQL ACL notation an empty grantee before '=' means PUBLIC. Match
+-- per ACL ENTRY, not against the joined string: a substring test for '=X/'
+-- also matches 'postgres=X/postgres', which would fail on a correctly locked
+-- function. A null proacl means default privileges, which include PUBLIC.
+select pg_temp.expect_eq(
+  (select count(*)::int from pg_proc p
+     join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname = 'api' and p.proname = 'get_symbol'
+      and (p.proacl is null
+           or exists (select 1 from unnest(p.proacl) a where a::text like '=%'))), 0,
+  'PUBLIC cannot execute api.get_symbol (no empty-grantee ACL entry)');
+
 select pg_temp.expect_eq(
   (select count(*)::int from information_schema.role_routine_grants
     where grantee = 'anon' and routine_schema = 'api'
       and routine_name = 'get_symbol'), 0,
-  'anon cannot execute api.get_symbol');
+  'anon holds no explicit grant on api.get_symbol');
+
+select pg_temp.expect_eq(
+  (select count(*)::int from information_schema.role_routine_grants
+    where grantee = 'authenticated' and routine_schema = 'api'
+      and routine_name = 'get_symbol') > 0, true,
+  'authenticated CAN execute api.get_symbol');
+
+-- No internal helper may be callable from the API surface.
+select pg_temp.expect_eq(
+  (select count(*)::int from pg_proc p
+     join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname in ('content','ops')
+      and (p.proacl is null
+           or exists (select 1 from unnest(p.proacl) a where a::text like '=%'))), 0,
+  'PUBLIC cannot execute any function in content or ops');
+
+-- Every function reachable from the API must pin its search_path, so a caller
+-- cannot shadow what the body resolves.
+select pg_temp.expect_eq(
+  (select count(*)::int from pg_proc p
+     join pg_namespace n on n.oid = p.pronamespace
+    where n.nspname in ('api','content','ops')
+      and p.prokind = 'f'
+      and (p.proconfig is null
+           or not exists (select 1 from unnest(p.proconfig) c where c like 'search_path=%'))), 0,
+  'every function in api, content and ops pins search_path');
 
 select pg_temp.expect_eq(
   (select count(*)::int from information_schema.role_routine_grants
