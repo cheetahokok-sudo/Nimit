@@ -372,9 +372,16 @@ select pg_temp.expect_eq(
   (select (api.get_symbol('snake') ->> 'slug')), 'snake',
   'get_symbol executes end-to-end and returns the symbol');
 
+-- State-agnostic: the array must exist and its length must equal the number
+-- of published interpretations — zero before content lands, real counts after.
+-- (An earlier version asserted length 0, which broke the day content shipped:
+-- a test that fails when the product starts working tests the wrong thing.)
 select pg_temp.expect_eq(
-  (select jsonb_array_length(api.get_symbol('snake') -> 'interpretations')), 0,
-  'get_symbol returns an empty interpretations array (none published)');
+  (select jsonb_array_length(api.get_symbol('snake') -> 'interpretations')),
+  (select count(*)::int from content.interpretation i
+     join content.symbol s on s.id = i.symbol_id
+    where s.slug = 'snake' and i.status = 'published'),
+  'get_symbol interpretations array matches published count');
 
 select pg_temp.expect_eq(
   (select count(*)::int from ops.api_access
@@ -398,6 +405,65 @@ select id, 'คำทดสอบอันดับ', 'synonym', 50 from content
 select pg_temp.expect_eq(
   (select slug from api.search_symbols('คำทดสอบอันดับ', 5) limit 1), 'zz-heavy',
   'search ranks by weight across symbols, not alphabetically by slug');
+
+-- Real content, when present, must be complete: this suite runs both before
+-- and after interpretations_v1.sql, so assert SHAPE consistency rather than a
+-- fixed count. Whatever number of published interpretations exist for snake,
+-- get_symbol must return exactly that many; and each must carry the fields
+-- the trust apparatus promises — a tier from the edition, own prose, and a
+-- verbatim quote ONLY where the work is free.
+do $$
+declare
+  expected int;
+  payload jsonb;
+  item jsonb;
+begin
+  select count(*) into expected
+    from content.interpretation i
+    join content.symbol s on s.id = i.symbol_id
+   where s.slug = 'snake' and i.status = 'published';
+
+  payload := api.get_symbol('snake');
+
+  if jsonb_array_length(payload -> 'interpretations') <> expected then
+    raise exception
+      'FAIL: get_symbol returns % interpretations, % are published',
+      jsonb_array_length(payload -> 'interpretations'), expected;
+  end if;
+  perform pg_temp.log_pass(
+    'get_symbol returns every published interpretation', '= ' || expected);
+
+  if expected > 0 then
+    item := payload -> 'interpretations' -> 0;
+    if item ->> 'tier' is null or item ->> 'textTh' is null then
+      raise exception 'FAIL: interpretation missing tier or body';
+    end if;
+    if item ->> 'quoteTh' is not null then
+      -- A quote implies the underlying work is free; re-derive and confirm.
+      if not exists (
+        select 1 from content.interpretation i
+          join content.passage p on p.id = i.passage_id
+          join content.symbol s on s.id = i.symbol_id
+         where s.slug = 'snake' and i.status = 'published'
+           and p.work_rights in
+             ('public_domain','cc0','cc_by','cc_by_sa','licensed_permission')
+      ) then
+        raise exception 'FAIL: quoteTh emitted for a non-free work';
+      end if;
+    end if;
+    perform pg_temp.log_pass(
+      'published interpretation carries tier, body and lawful quote handling');
+  end if;
+end $$;
+
+-- Buddhist canon must NEVER produce number associations — permanent policy,
+-- asserted so a future seed cannot quietly cross the line.
+select pg_temp.expect_eq(
+  (select count(*)::int from content.number_association n
+     join content.passage p on p.id = n.passage_id
+     join content.edition e on e.id = p.edition_id
+    where e.citekey = 'tipitaka-27-77'), 0,
+  'no number associations derive from Buddhist canonical text');
 
 -- Seed idempotency: the acquisition tracker must have a unique constraint so
 -- ON CONFLICT DO NOTHING actually has something to conflict with. Without it,

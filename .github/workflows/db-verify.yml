@@ -53,6 +53,7 @@ jobs:
                    supabase/seeds/sources_v1.sql \
                    supabase/seeds/sources_v2_research.sql \
                    supabase/seeds/sources_v3_legal_corrections.sql \
+                   supabase/seeds/sources_v4_tipitaka.sql \
                    supabase/seeds/dream_symbols_v1.sql; do
             echo "== $f"
             psql "$PGURL" -v ON_ERROR_STOP=1 -q -f "$f"
@@ -82,6 +83,11 @@ jobs:
 
       - name: Publish safe layer
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/publish_v1.sql
+
+      # Runs after publish because it publishes its own passage and rows,
+      # which requires the work/edition provenance chain to be published first.
+      - name: Apply first content set (Mahasupina interpretations)
+        run: psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/interpretations_v1.sql
 
       - name: Assertion suite (published state)
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/rights_firewall_test.sql
