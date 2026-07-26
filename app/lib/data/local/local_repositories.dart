@@ -98,6 +98,40 @@ class LocalSavedTicketsRepository implements SavedTicketsRepository {
   }
 }
 
+class LocalWatchedNumbersRepository implements WatchedNumbersRepository {
+  LocalWatchedNumbersRepository(this._prefs);
+
+  static const _key = 'nimit.watched.v1';
+  final SharedPreferences _prefs;
+
+  /// Enough to cover a few dreams without the ตรวจหวย screen turning into a
+  /// wall of numbers, which is the shape a เลขเด็ด tip sheet takes.
+  static const _max = 20;
+
+  @override
+  Future<List<WatchedNumber>> all() async {
+    return _decodeListOrEmpty(_prefs.getString(_key), WatchedNumber.fromJson);
+  }
+
+  @override
+  Future<void> save(WatchedNumber number) async {
+    final list = await all();
+    list.removeWhere((n) => n.number == number.number);
+    list.insert(0, number);
+    if (list.length > _max) list.removeRange(_max, list.length);
+    await _prefs.setString(
+        _key, jsonEncode([for (final n in list) n.toJson()]));
+  }
+
+  @override
+  Future<void> remove(String number) async {
+    final list = await all();
+    list.removeWhere((n) => n.number == number);
+    await _prefs.setString(
+        _key, jsonEncode([for (final n in list) n.toJson()]));
+  }
+}
+
 class LocalBudgetRepository implements BudgetRepository {
   LocalBudgetRepository(this._prefs);
 

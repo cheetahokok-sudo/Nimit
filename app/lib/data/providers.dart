@@ -41,15 +41,43 @@ final savedTicketsRepositoryProvider = Provider<SavedTicketsRepository>(
   (ref) => LocalSavedTicketsRepository(ref.watch(sharedPreferencesProvider)),
 );
 
+final watchedNumbersRepositoryProvider = Provider<WatchedNumbersRepository>(
+  (ref) => LocalWatchedNumbersRepository(ref.watch(sharedPreferencesProvider)),
+);
+
 final budgetRepositoryProvider = Provider<BudgetRepository>(
   (ref) => LocalBudgetRepository(ref.watch(sharedPreferencesProvider)),
 );
 
 // ---- Read-only data ----
 
-final todaysNumbersProvider = FutureProvider<List<String>>(
-  (ref) => ref.watch(dreamRepositoryProvider).todaysNumbers(),
-);
+/// เลขนิมิตวันนี้ — derived from the user's OWN saved dreams.
+///
+/// This used to call `dreamRepository.todaysNumbers()`, and the remote
+/// implementation returned four hardcoded values ('16','29','68','269') under a
+/// heading that reads as tonight's omen numbers, with a caption promising they
+/// came from the user's saved symbols. In a lottery-adjacent app whose entire
+/// claim is verifiable sourcing, that was the worst thing in the product: a
+/// user could reasonably have gone and bought them.
+///
+/// The journal is local, so no repository could ever answer this honestly.
+/// Now it is computed here from real entries, and when there are none the UI
+/// shows an empty state rather than inventing something to fill the space.
+final todaysNumbersProvider = FutureProvider<List<String>>((ref) async {
+  final entries = await ref.watch(journalProvider.future);
+  final cutoff = DateTime.now().subtract(const Duration(days: 7));
+
+  final seen = <String>{};
+  for (final e in entries) {
+    if (e.createdAt.isBefore(cutoff)) continue;
+    for (final n in e.numbers) {
+      if (n.trim().isEmpty) continue;
+      seen.add(n.trim());
+      if (seen.length >= 6) return seen.toList();
+    }
+  }
+  return seen.toList();
+});
 
 class TrendsRegionNotifier extends Notifier<String> {
   @override
@@ -214,6 +242,30 @@ class SavedTicketsNotifier extends AsyncNotifier<List<SavedTicket>> {
 final savedTicketsProvider =
     AsyncNotifierProvider<SavedTicketsNotifier, List<SavedTicket>>(
         SavedTicketsNotifier.new);
+
+class WatchedNumbersNotifier extends AsyncNotifier<List<WatchedNumber>> {
+  @override
+  Future<List<WatchedNumber>> build() =>
+      ref.watch(watchedNumbersRepositoryProvider).all();
+
+  Future<void> watch(String number, {String? sourceTh}) async {
+    await ref.read(watchedNumbersRepositoryProvider).save(WatchedNumber(
+          number: number.trim(),
+          savedAt: DateTime.now(),
+          sourceTh: sourceTh,
+        ));
+    ref.invalidateSelf();
+  }
+
+  Future<void> remove(String number) async {
+    await ref.read(watchedNumbersRepositoryProvider).remove(number);
+    ref.invalidateSelf();
+  }
+}
+
+final watchedNumbersProvider =
+    AsyncNotifierProvider<WatchedNumbersNotifier, List<WatchedNumber>>(
+        WatchedNumbersNotifier.new);
 
 class BudgetNotifier extends AsyncNotifier<BudgetState> {
   @override

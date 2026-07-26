@@ -52,12 +52,4 @@ class PostgrestDreamRepository implements DreamRepository {
     return DreamAnalysis.fromJson(decoded);
   }
 
-  @override
-  Future<List<String>> todaysNumbers() async {
-    // Deliberately still the demo values: the honest source for "เลขนิมิตวันนี้"
-    // is the user's own saved journal (the caption already says so), which is
-    // local data this remote repository cannot see. Wiring that is home-screen
-    // work, not analysis work — tracked in the roadmap, not faked here.
-    return const ['16', '29', '68', '269'];
-  }
 }

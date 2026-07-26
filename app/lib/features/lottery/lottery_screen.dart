@@ -197,6 +197,15 @@ class _LotteryScreenState extends ConsumerState<LotteryScreen> {
           orElse: () => const SizedBox.shrink(),
         ),
 
+        // Numbers carried over from dreams. Distinct from saved tickets, and
+        // never shown with a baht figure — see _WatchedSection.
+        ref.watch(watchedNumbersProvider).maybeWhen(
+              data: (list) => list.isEmpty
+                  ? const SizedBox.shrink()
+                  : _WatchedSection(watched: list, latest: latest),
+              orElse: () => const SizedBox.shrink(),
+            ),
+
         const SectionHeader('ตรวจเลขของคุณ'),
         const SizedBox(height: 10),
         Row(
@@ -917,6 +926,104 @@ class _ResultDialog extends StatelessWidget {
           onPressed: () => Navigator.pop(context),
           child: const Text('ปิด'),
         ),
+      ],
+    );
+  }
+}
+
+/// เลขที่ตามอยู่ — short numbers carried over from dreams.
+///
+/// THE RULE THIS SECTION EXISTS TO ENFORCE: no baht figure appears here, ever.
+/// These are two- or three-digit เลขเชิงสัญลักษณ์, not tickets. Telling someone
+/// their watched "71" won ฿2,000 would be telling them they won money on a
+/// ticket they do not hold. ออก / ไม่ออก is the entire truth available, and it
+/// is still the thing they open the app to find out.
+///
+/// Provenance is shown on every row. Without it this list is visually
+/// indistinguishable from a เลขเด็ด tip sheet, which is precisely what the
+/// product must not become.
+class _WatchedSection extends ConsumerWidget {
+  const _WatchedSection({required this.watched, required this.latest});
+
+  final List<WatchedNumber> watched;
+  final AsyncValue<DrawResult> latest;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final textTheme = Theme.of(context).textTheme;
+    final draw = latest.value;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader('เลขที่ตามอยู่',
+            caption: 'เลขจากความฝันที่คุณเก็บไว้ — ดูว่าออกหรือไม่'),
+        const SizedBox(height: 10),
+        for (final w in watched) ...[
+          Builder(builder: (context) {
+            final outcome =
+                draw == null ? null : checkWatched(draw, w);
+            final drawn = outcome?.drawn ?? false;
+            final judgeable = outcome?.judgeable ?? false;
+
+            return SectionCard(
+              color: drawn ? NimitColors.successBg : NimitColors.surface,
+              padding: const EdgeInsets.fromLTRB(16, 12, 8, 12),
+              child: Row(
+                children: [
+                  Text(w.number,
+                      style: TextStyle(
+                        fontSize: 24,
+                        fontWeight: FontWeight.w800,
+                        letterSpacing: 2,
+                        color: drawn
+                            ? NimitColors.successInk
+                            : NimitColors.ink,
+                        fontFeatures: const [FontFeature.tabularFigures()],
+                      )),
+                  const SizedBox(width: 14),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          !judgeable
+                              ? 'ยังไม่ประกาศ'
+                              : drawn
+                                  ? 'เลขนี้ออก · ${outcome!.matchedTierTh}'
+                                  : 'งวดนี้ไม่ออก',
+                          style: textTheme.bodyMedium!.copyWith(
+                            fontWeight: FontWeight.w700,
+                            color: drawn
+                                ? NimitColors.successInk
+                                : NimitColors.inkSoft,
+                          ),
+                        ),
+                        if (w.sourceTh != null)
+                          Text(w.sourceTh!,
+                              style: textTheme.bodySmall!
+                                  .copyWith(color: NimitColors.inkSoft)),
+                      ],
+                    ),
+                  ),
+                  IconButton(
+                    tooltip: 'เลิกติดตาม',
+                    onPressed: () => ref
+                        .read(watchedNumbersProvider.notifier)
+                        .remove(w.number),
+                    icon: const Icon(Icons.close,
+                        size: 18, color: NimitColors.inkSoft),
+                  ),
+                ],
+              ),
+            );
+          }),
+          const SizedBox(height: 10),
+        ],
+        const DisclaimerText(
+          'เลขที่ตามอยู่ไม่ใช่สลาก ถึงเลขจะออกก็ต้องมีสลากตัวจริงจึงจะขึ้นเงินได้',
+        ),
+        const SizedBox(height: 20),
       ],
     );
   }

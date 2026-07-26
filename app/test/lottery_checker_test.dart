@@ -65,6 +65,7 @@ SavedTicket _ticket(String number, {int quantity = 1}) =>
     SavedTicket(number: number, savedAt: DateTime(2026, 7, 1), quantity: quantity);
 
 void main() {
+  _watchedTests();
   group('single-tier matching', () {
     test('the first prize pays 6,000,000', () {
       final o = checkTicket(_draw(), _ticket('639214'));
@@ -301,6 +302,83 @@ void main() {
         _tier('last2', 'เลขท้าย 2', 2000, MatchKind.suffix2, ['14']),
       ]);
       expect(hopeAmountThb(d, [_ticket('123456', quantity: 5)]), 0);
+    });
+  });
+}
+
+/// Watched numbers are the ฝัน→ตรวจหวย bridge, and the rule that makes them
+/// safe is that they never carry an amount. A two-digit เลขเชิงสัญลักษณ์ is not
+/// a ticket, so "it came out" and "you won money" are different statements.
+void _watchedTests() {
+  WatchedNumber w(String n) =>
+      WatchedNumber(number: n, savedAt: DateTime(2026, 7, 1), sourceTh: 'จากฝัน');
+
+  DrawResult drawWith({DrawStatus status = DrawStatus.announced,
+      bool complete = true}) {
+    return DrawResult(
+      drawDate: DateTime(2026, 7, 16),
+      periodLabelTh: 'งวดวันที่ 16 กรกฎาคม 2569',
+      status: status,
+      resultRevision: 0,
+      complete: complete,
+      hasUnreadableTier: false,
+      dutyRate: 0.005,
+      prizes: [
+        _tier('first', 'รางวัลที่ 1', 6000000, MatchKind.exact6, ['639214'],
+            sort: 10),
+        _tier('last3', 'รางวัลเลขท้าย 3 ตัว', 4000, MatchKind.suffix3,
+            ['427', '746'], sort: 80),
+        _tier('last2', 'รางวัลเลขท้าย 2 ตัว', 2000, MatchKind.suffix2, ['71'],
+            sort: 90),
+      ],
+      sourceCustodianTh: 'สำนักงานสลากกินแบ่งรัฐบาล',
+    );
+  }
+
+  group('watched numbers never carry money', () {
+    test('WatchedOutcome exposes no amount at all', () {
+      final o = checkWatched(drawWith(), w('71'));
+      expect(o.drawn, isTrue);
+      // The type itself is the guarantee: there is nowhere to put a baht value.
+      expect(o.matchedTierTh, 'รางวัลเลขท้าย 2 ตัว');
+    });
+
+    test('a 2-digit number is compared against เลขท้าย 2 ตัว', () {
+      expect(checkWatched(drawWith(), w('71')).drawn, isTrue);
+      expect(checkWatched(drawWith(), w('14')).drawn, isFalse);
+    });
+
+    test('a 3-digit number is compared against เลขท้าย 3 ตัว', () {
+      expect(checkWatched(drawWith(), w('427')).drawn, isTrue);
+      expect(checkWatched(drawWith(), w('999')).drawn, isFalse);
+    });
+
+    test('a 2-digit number is NOT matched against the first prize ending', () {
+      // รางวัลที่ 1 is 639214, ending '14'. A user watching '14' is following
+      // the announced เลขท้าย 2 ตัว (71), not the first prize's tail — they
+      // hold no ticket, so the first prize is irrelevant to them.
+      expect(checkWatched(drawWith(), w('14')).drawn, isFalse);
+    });
+
+    test('a length matching no tier is displayed but never judged', () {
+      final o = checkWatched(drawWith(), w('1234'));
+      expect(o.judgeable, isFalse);
+      expect(o.drawn, isFalse);
+    });
+
+    test('an incomplete draw yields no verdict', () {
+      final o = checkWatched(
+          drawWith(status: DrawStatus.partial, complete: false), w('71'));
+      expect(o.judgeable, isFalse);
+      expect(o.drawn, isFalse);
+    });
+
+    test('leading zeros survive', () {
+      final d = _draw(prizes: [
+        _tier('last2', 'เลขท้าย 2 ตัว', 2000, MatchKind.suffix2, ['08']),
+      ]);
+      expect(checkWatched(d, w('08')).drawn, isTrue);
+      expect(checkWatched(d, w('8')).judgeable, isFalse);
     });
   });
 }

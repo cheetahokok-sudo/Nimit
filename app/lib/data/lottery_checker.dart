@@ -150,6 +150,66 @@ CheckOutcome checkAll(DrawResult draw, List<SavedTicket> tickets) =>
       tickets: [for (final t in tickets) checkTicket(draw, t)],
     );
 
+/// Whether a watched number came out in a draw.
+///
+/// NOTE WHAT THIS DOES NOT CARRY: an amount. A watched number is a two- or
+/// three-digit เลขเชิงสัญลักษณ์ the user is following, not a ticket they hold.
+/// Reporting "฿2,000" beside it would tell someone they had won money on a
+/// ticket that does not exist. ออก or ไม่ออก is the whole truth available.
+class WatchedOutcome {
+  const WatchedOutcome({
+    required this.number,
+    required this.drawn,
+    required this.judgeable,
+    this.matchedTierTh,
+  });
+
+  final String number;
+
+  /// The number appeared in the tier its length is comparable against.
+  final bool drawn;
+
+  /// False when the draw is incomplete, or the number's length matches no
+  /// tier — in which case the UI shows it without a verdict.
+  final bool judgeable;
+  final String? matchedTierTh;
+}
+
+/// Check a watched number against a draw.
+///
+/// Compares only against the tier matching its LENGTH: two digits against
+/// เลขท้าย 2 ตัว, three against เลขท้าย 3 ตัว, six against รางวัลที่ 1. A
+/// two-digit number is not compared against a six-digit prize's ending,
+/// because the user is following the announced two-digit prize, not holding a
+/// ticket.
+WatchedOutcome checkWatched(DrawResult draw, WatchedNumber watched) {
+  final kind = watched.comparableTier;
+  if (kind == null || !draw.verdictAvailable) {
+    return WatchedOutcome(
+      number: watched.number,
+      drawn: false,
+      judgeable: false,
+    );
+  }
+
+  for (final tier in draw.prizes) {
+    if (tier.matchKind != kind) continue;
+    if (tier.numbers.contains(watched.number)) {
+      return WatchedOutcome(
+        number: watched.number,
+        drawn: true,
+        judgeable: true,
+        matchedTierTh: tier.nameTh,
+      );
+    }
+  }
+  return WatchedOutcome(
+    number: watched.number,
+    drawn: false,
+    judgeable: true,
+  );
+}
+
 /// What a set of held tickets would pay if they took the top prize.
 ///
 /// This is the "ถ้าถูกงวดนี้ 5 ใบ ได้เท่าไร" figure, and it is deliberately

@@ -17,7 +17,11 @@ abstract interface class DreamRepository {
 
   /// Today's symbolic numbers for the home screen
   /// (derived from the user's own saved symbols — never a prediction).
-  Future<List<String>> todaysNumbers();
+  // No todaysNumbers() here. "เลขนิมิตวันนี้" can only honestly come from the
+  // user's own journal, which is local data no repository can see — and the
+  // remote implementation of this method was returning four invented constants
+  // to a screen that told users they came from their saved symbols. It is now
+  // computed from real entries in todaysNumbersProvider.
 }
 
 abstract interface class TrendsRepository {
@@ -75,6 +79,16 @@ abstract interface class JournalRepository {
 abstract interface class SavedTicketsRepository {
   Future<List<SavedTicket>> all();
   Future<void> save(SavedTicket ticket);
+  Future<void> remove(String number);
+}
+
+/// Short numbers the user is watching, carried over from dreams.
+///
+/// Separate from [SavedTicketsRepository] because a watched number is not a
+/// ticket: it can be reported as ออก or ไม่ออก, never as an amount of money.
+abstract interface class WatchedNumbersRepository {
+  Future<List<WatchedNumber>> all();
+  Future<void> save(WatchedNumber number);
   Future<void> remove(String number);
 }
 

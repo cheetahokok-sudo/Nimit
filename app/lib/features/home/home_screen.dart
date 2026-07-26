@@ -148,11 +148,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         const SizedBox(height: 20),
 
-        const SectionHeader('เลขนิมิตวันนี้',
-            caption: 'จากสัญลักษณ์ที่คุณบันทึกไว้ ไม่ใช่คำทำนายผล'),
+        const SectionHeader('เลขนิมิตจากความฝันของคุณ',
+            caption: 'จากความฝันที่คุณบันทึกไว้ใน 7 วัน ไม่ใช่คำทำนายผล'),
         const SizedBox(height: 10),
         numbers.when(
-          data: (list) => NumberPillRow(list),
+          // Empty is a real and common state — a new user has recorded no
+          // dreams. It must read as empty. This section previously rendered
+          // four invented constants here, under a caption claiming they came
+          // from the user's own symbols.
+          data: (list) => list.isEmpty
+              ? const SectionCard(
+                  child: DisclaimerText(
+                      'ยังไม่มีเลขจากความฝันของคุณ — เล่าความฝันแล้วเก็บ'
+                      'เลขเชิงสัญลักษณ์ไว้ดูตอนหวยออกได้'),
+                )
+              : NumberPillRow(list),
           loading: () => const Padding(
             padding: EdgeInsets.symmetric(vertical: 12),
             child: Center(child: CircularProgressIndicator()),

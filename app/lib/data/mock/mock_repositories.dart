@@ -58,11 +58,6 @@ class MockDreamRepository implements DreamRepository {
     );
   }
 
-  @override
-  Future<List<String>> todaysNumbers() async {
-    await Future<void>.delayed(_latency);
-    return const ['16', '29', '68', '269'];
-  }
 }
 
 class MockTrendsRepository implements TrendsRepository {

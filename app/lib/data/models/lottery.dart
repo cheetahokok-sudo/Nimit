@@ -289,6 +289,52 @@ class BudgetState {
       );
 }
 
+/// A short number the user is watching, usually from a dream.
+///
+/// DELIBERATELY NOT A [SavedTicket], and the distinction is about money.
+/// เลขเชิงสัญลักษณ์ from a dream are two or three digits; a lottery ticket is
+/// six. Storing '16' as a ticket would make the checker mark it invalid, and —
+/// worse — showing a prize figure beside it would tell someone they had won
+/// ฿2,000 when they hold no ticket at all.
+///
+/// A watched number can only ever be reported as ออก or ไม่ออก. Money requires
+/// a ticket.
+class WatchedNumber {
+  const WatchedNumber({
+    required this.number,
+    required this.savedAt,
+    this.sourceTh,
+  });
+
+  final String number;
+  final DateTime savedAt;
+
+  /// Where it came from, e.g. 'จากฝัน 26 ก.ค. · นกสีขาว'. Provenance is the
+  /// point: without it the list is indistinguishable from a เลขเด็ด tip sheet.
+  final String? sourceTh;
+
+  /// Which prize tier this length can be compared against. Null when the
+  /// length matches no tier, in which case it is displayed but never judged.
+  MatchKind? get comparableTier => switch (number.length) {
+        2 => MatchKind.suffix2,
+        3 => MatchKind.suffix3,
+        6 => MatchKind.exact6,
+        _ => null,
+      };
+
+  Map<String, dynamic> toJson() => {
+        'number': number,
+        'savedAt': savedAt.toIso8601String(),
+        'sourceTh': sourceTh,
+      };
+
+  factory WatchedNumber.fromJson(Map<String, dynamic> json) => WatchedNumber(
+        number: json['number'] as String,
+        savedAt: DateTime.parse(json['savedAt'] as String),
+        sourceTh: json['sourceTh'] as String?,
+      );
+}
+
 /// One row of the ผลย้อนหลัง list.
 ///
 /// Deliberately NOT a [DrawResult]. A full draw is ~4 KB because it carries all

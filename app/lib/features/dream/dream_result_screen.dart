@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../core/theme/nimit_theme.dart';
-import '../../core/widgets/number_pill.dart';
+import '../../core/utils/thai_date.dart';
 import '../../core/widgets/section.dart';
 import '../../core/widgets/source_badge.dart';
 import '../../data/models/dream.dart';
@@ -259,7 +259,11 @@ class _DreamResultScreenState extends ConsumerState<DreamResultScreen> {
           const SectionHeader('เลขเชิงสัญลักษณ์',
               caption: 'สร้างจากสัญลักษณ์ในฝัน ไม่ใช่โอกาสถูกรางวัล'),
           const SizedBox(height: 10),
-          NumberPillRow(analysis.numbers),
+          _WatchableNumbers(
+            numbers: analysis.numbers,
+            sourceTh: 'จากฝัน ${formatThaiDate(DateTime.now())}'
+                '${analysis.headlineTh.isEmpty ? '' : ' · ${analysis.headlineTh}'}',
+          ),
         ] else if (analysis.interpretations.isNotEmpty)
           // Honest absence: Buddhist canonical sources never map to numbers,
           // so a canon-only result correctly has none — say so rather than
@@ -287,6 +291,109 @@ class _DreamResultScreenState extends ConsumerState<DreamResultScreen> {
           ],
         ),
       ],
+    );
+  }
+}
+
+/// เลขเชิงสัญลักษณ์ that can be carried over to ตรวจหวย.
+///
+/// Tapping a number adds it to เลขที่ตามอยู่ — a watch list, NOT the saved
+/// ticket list. These are two or three digits; a ticket is six. The app can
+/// tell the user later whether the number came out, and it deliberately cannot
+/// tell them they won money, because holding a number is not holding a ticket.
+class _WatchableNumbers extends ConsumerWidget {
+  const _WatchableNumbers({required this.numbers, required this.sourceTh});
+
+  final List<String> numbers;
+  final String sourceTh;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final watched = ref.watch(watchedNumbersProvider).value ?? const [];
+    final watchedSet = {for (final w in watched) w.number};
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          children: [
+            for (final n in numbers)
+              _WatchChip(
+                number: n,
+                isWatched: watchedSet.contains(n),
+                onTap: () async {
+                  final notifier = ref.read(watchedNumbersProvider.notifier);
+                  if (watchedSet.contains(n)) {
+                    await notifier.remove(n);
+                    return;
+                  }
+                  await notifier.watch(n, sourceTh: sourceTh);
+                  if (!context.mounted) return;
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                    content: Text('เก็บเลข $n ไว้ดูตอนหวยออก'),
+                    action: SnackBarAction(
+                      label: 'ไปตรวจหวย',
+                      onPressed: () => context.go('/lottery'),
+                    ),
+                  ));
+                },
+              ),
+          ],
+        ),
+        const SizedBox(height: 10),
+        const DisclaimerText(
+          'แตะเพื่อเก็บไว้ดูตอนหวยออก — แอปจะบอกว่าเลขนี้ออกหรือไม่ '
+          'แต่ไม่ได้แปลว่าถูกรางวัล ต้องมีสลากตัวจริงเท่านั้น',
+        ),
+      ],
+    );
+  }
+}
+
+class _WatchChip extends StatelessWidget {
+  const _WatchChip({
+    required this.number,
+    required this.isWatched,
+    required this.onTap,
+  });
+
+  final String number;
+  final bool isWatched;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: onTap,
+      borderRadius: BorderRadius.circular(16),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
+        decoration: BoxDecoration(
+          color: isWatched ? NimitColors.aubergine : NimitColors.gold,
+          borderRadius: BorderRadius.circular(16),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(number,
+                style: TextStyle(
+                  fontSize: 22,
+                  fontWeight: FontWeight.w800,
+                  color: isWatched
+                      ? NimitColors.onDark
+                      : NimitColors.aubergineDeep,
+                  fontFeatures: const [FontFeature.tabularFigures()],
+                )),
+            const SizedBox(width: 8),
+            Icon(isWatched ? Icons.check : Icons.add,
+                size: 18,
+                color:
+                    isWatched ? NimitColors.gold : NimitColors.aubergineDeep),
+          ],
+        ),
+      ),
     );
   }
 }
