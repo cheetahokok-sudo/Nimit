@@ -7,11 +7,58 @@ import '../../core/widgets/number_pill.dart';
 import '../../core/widgets/section.dart';
 import '../../data/providers.dart';
 
-class HomeScreen extends ConsumerWidget {
+class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<HomeScreen> createState() => _HomeScreenState();
+}
+
+class _HomeScreenState extends ConsumerState<HomeScreen> {
+  final _dreamController = TextEditingController();
+  bool _analyzing = false;
+
+  @override
+  void dispose() {
+    _dreamController.dispose();
+    super.dispose();
+  }
+
+  /// Quick entry from home: typed text analyzes immediately; an empty field
+  /// falls through to the full entry form (feeling/time chips live there).
+  /// The card used to be a decoration that merely LOOKED like an input —
+  /// anything that looks typeable must be typeable.
+  Future<void> _quickAnalyze() async {
+    final text = _dreamController.text.trim();
+    if (text.isEmpty) {
+      context.go('/dream');
+      return;
+    }
+    setState(() => _analyzing = true);
+    try {
+      final analysis =
+          await ref.read(dreamRepositoryProvider).analyze(text);
+      ref.read(dreamSessionProvider.notifier).start(
+            DreamSession(text: text, analysis: analysis),
+          );
+      if (mounted) {
+        _dreamController.clear();
+        context.go('/dream/result');
+      }
+    } catch (_) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text('วิเคราะห์ไม่สำเร็จ ลองใหม่อีกครั้ง')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _analyzing = false);
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
     final numbers = ref.watch(todaysNumbersProvider);
 
@@ -42,23 +89,38 @@ class HomeScreen extends ConsumerWidget {
                   style: textTheme.bodySmall!
                       .copyWith(color: NimitColors.onDarkSoft)),
               const SizedBox(height: 14),
-              Container(
-                padding:
-                    const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
-                decoration: BoxDecoration(
-                  color: NimitColors.aubergineDeep,
-                  borderRadius: BorderRadius.circular(14),
-                ),
-                child: Row(
-                  children: [
-                    Expanded(
-                      child: Text('เมื่อคืนฉันฝันว่า...',
-                          style: textTheme.bodyMedium!
-                              .copyWith(color: NimitColors.onDarkSoft)),
-                    ),
-                    const Icon(Icons.mic_none,
-                        color: NimitColors.onDarkSoft, size: 20),
-                  ],
+              TextField(
+                controller: _dreamController,
+                maxLines: 2,
+                minLines: 1,
+                textInputAction: TextInputAction.done,
+                onSubmitted: (_) => _quickAnalyze(),
+                style: textTheme.bodyMedium!
+                    .copyWith(color: NimitColors.onDark),
+                cursorColor: NimitColors.gold,
+                decoration: InputDecoration(
+                  hintText: 'เมื่อคืนฉันฝันว่า...',
+                  hintStyle: textTheme.bodyMedium!
+                      .copyWith(color: NimitColors.onDarkSoft),
+                  filled: true,
+                  fillColor: NimitColors.aubergineDeep,
+                  suffixIcon: const Icon(Icons.mic_none,
+                      color: NimitColors.onDarkSoft, size: 20),
+                  contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16, vertical: 13),
+                  border: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  enabledBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide: BorderSide.none,
+                  ),
+                  focusedBorder: OutlineInputBorder(
+                    borderRadius: BorderRadius.circular(14),
+                    borderSide:
+                        const BorderSide(color: NimitColors.gold, width: 1.4),
+                  ),
                 ),
               ),
               const SizedBox(height: 12),
@@ -68,8 +130,16 @@ class HomeScreen extends ConsumerWidget {
                   foregroundColor: NimitColors.aubergineDeep,
                   minimumSize: const Size.fromHeight(44),
                 ),
-                onPressed: () => context.go('/dream'),
-                child: const Text('เริ่มวิเคราะห์'),
+                onPressed: _analyzing ? null : _quickAnalyze,
+                child: _analyzing
+                    ? const SizedBox(
+                        width: 20,
+                        height: 20,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2.5,
+                            color: NimitColors.aubergineDeep),
+                      )
+                    : const Text('เริ่มวิเคราะห์'),
               ),
             ],
           ),

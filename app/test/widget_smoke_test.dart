@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:nimit/core/router/app_router.dart';
 import 'package:nimit/data/providers.dart';
 import 'package:nimit/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -23,6 +24,11 @@ void main() {
         child: const NimitApp(),
       ),
     );
+    await tester.pumpAndSettle();
+    // appRouter is a process-global, so navigation state LEAKS between tests:
+    // a test that ends on /dream/result would silently start the next test
+    // there. Every test begins at home, explicitly.
+    appRouter.go('/home');
     await tester.pumpAndSettle();
   }
 
@@ -93,6 +99,37 @@ void main() {
     expect(entry['analysis'], isNotNull,
         reason: 'the snapshot of what the user was shown must be frozen');
     expect((entry['analysis'] as Map)['headlineTh'], isNotEmpty);
+  });
+
+  testWidgets('home quick-entry: typing and เริ่มวิเคราะห์ reaches results',
+      (tester) async {
+    // Regression: the home dream card used to be a decoration that looked
+    // like an input; typing was impossible and the button only navigated.
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await pumpApp(tester);
+
+    await tester.enterText(
+        find.byType(TextField).first, 'ฝันเห็นงูตัวใหญ่ในบ้าน');
+    await tester.tap(find.text('เริ่มวิเคราะห์'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('คำแปลความฝัน'), findsOneWidget);
+  });
+
+  testWidgets('home quick-entry: empty field falls through to the full form',
+      (tester) async {
+    tester.view.physicalSize = const Size(800, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+    await pumpApp(tester);
+
+    await tester.tap(find.text('เริ่มวิเคราะห์'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('เล่าความฝัน'), findsOneWidget);
+    expect(find.text('คุณรู้สึกอย่างไรในฝัน?'), findsOneWidget);
   });
 
   testWidgets('all tabs navigate', (tester) async {
