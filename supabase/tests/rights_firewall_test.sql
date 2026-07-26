@@ -479,6 +479,72 @@ select pg_temp.expect_eq(
       and c.contype = 'u') >= 1, true,
   'acquisition tracker carries a unique constraint for idempotent seeds');
 
+-- ---------------------------------------------------------------------------
+select pg_temp.section('9. analyze_dream — the core loop');
+-- ---------------------------------------------------------------------------
+
+select pg_temp.expect_fail($$select api.analyze_dream('งู')$$,
+  'analyze rejects too-short input');
+
+select pg_temp.expect_eq(
+  (select jsonb_array_length(api.analyze_dream('ประชุมเรื่องงบประมาณประจำปี') -> 'symbols')), 0,
+  'analyze returns honest empty for text with no known symbols');
+
+-- Snake was published by the earlier fixture, so it must be found; its
+-- interpretation count must mirror what is actually published (0 in the
+-- draft CI phase, real counts live) — same state-agnostic pattern as before.
+do $$
+declare
+  payload jsonb;
+  expected int;
+begin
+  payload := api.analyze_dream('เมื่อคืนฝันเห็นงูเผือกตัวใหญ่เลื้อยเข้ามาในบ้าน');
+
+  if not exists (
+    select 1 from jsonb_array_elements(payload -> 'symbols') e
+    where e ->> 'slug' = 'snake'
+  ) then
+    raise exception 'FAIL: analyze did not surface the snake symbol';
+  end if;
+  perform pg_temp.log_pass('analyze surfaces the snake from a dream sentence');
+
+  -- บ้าน is published? Only in live runs; count interpretations for exactly
+  -- the symbols the call matched, so the assertion is state-agnostic.
+  select count(*) into expected
+    from content.interpretation i
+    join content.symbol s on s.id = i.symbol_id
+   where i.status = 'published'
+     and s.slug in (
+       select e ->> 'slug' from jsonb_array_elements(payload -> 'symbols') e);
+
+  if jsonb_array_length(payload -> 'interpretations') <> least(expected, 12) then
+    raise exception 'FAIL: analyze returned % interpretations, % published for matched symbols',
+      jsonb_array_length(payload -> 'interpretations'), expected;
+  end if;
+  perform pg_temp.log_pass('analyze returns every published interpretation for its matches',
+    '= ' || least(expected, 12));
+
+  -- Numbers must come only from published associations — with canon-only
+  -- content that means EMPTY, and never anything else invented.
+  if (select count(*) from jsonb_array_elements_text(payload -> 'numbers')) <>
+     (select count(distinct n.number) from content.number_association n
+       where n.status = 'published'
+         and n.symbol_id in (select s.id from content.symbol s
+                              where s.slug in (
+                                select e ->> 'slug'
+                                from jsonb_array_elements(payload -> 'symbols') e)))
+  then
+    raise exception 'FAIL: analyze numbers do not match published associations';
+  end if;
+  perform pg_temp.log_pass('analyze numbers come only from published associations');
+end $$;
+
+select pg_temp.expect_eq(
+  (select count(*)::int from information_schema.role_routine_grants
+    where grantee = 'anon' and routine_schema = 'api'
+      and routine_name = 'analyze_dream') > 0, true,
+  'anon CAN execute api.analyze_dream (the product front door)');
+
 do $$ begin
   raise notice '';
   raise notice '==========================================';

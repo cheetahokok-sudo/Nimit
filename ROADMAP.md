@@ -16,7 +16,7 @@ migrations+assertion suite)
 |---|---|---|---|
 | A0 Scaffold | 8 หน้าจอตาม UI board v2, 5 แท็บ, ภาษาไทยเป็นหลัก, mock data, journal/เลข/งบ เก็บในเครื่อง | ทุกหน้าจอเดินได้จริง, `flutter test` เขียว, deploy ขึ้น Pages | ✅ |
 | A1 Live read | อ่านข้อมูลจริงชุดแรกจาก backend | หน้าแหล่งอ้างอิงแสดงจำนวนจริงจากฐานข้อมูล (46) ผ่าน `PostgrestSourcesRepository` | ✅ |
-| A2 Dream analysis จริง | `analyze()` เรียก Edge Function ที่สแกนข้อความฝันแบบ longest-match กับ `symbol_term` แล้วคืนคำแปลจริงพร้อม citation | ฝันเรื่องงูในแอป → ได้คำแปลจากมหาสุบินชาดกพร้อมป้าย A2 และที่มา; mock ยังเป็นค่า default ของเทสต์ | ⬜ ถัดไป |
+| A2 Dream analysis จริง | `analyze()` เรียก `api.analyze_dream` (SQL, deterministic) สแกนแบบ longest-match กับ `symbol_term` แล้วคืนคำแปลจริงพร้อม citation, quote (เมื่อ PD), context note และสถานะว่างอย่างซื่อสัตย์ | ✅ ฝันเรื่องงูในแอป → คำแปลจากมหาสุบินชาดกพร้อมป้าย A2, ที่มา และคำกำกับ; mock ยังเป็นค่า default ของเทสต์ | ✅ |
 | A3 Library browser | ปุ่ม "เปิดคลังตำรา" ใช้งานจริง: ค้นสัญลักษณ์, หน้ารายละเอียดพร้อมคำแปล+บรรณานุกรม+quote ที่ชอบด้วยกฎหมาย | ผู้ใช้ตามรอยจากคำแปลไปถึงระเบียนต้นฉบับได้ในสองแตะ | ⬜ |
 | A4 Auth + ข้อมูลผู้ใช้ | Anonymous sign-in, journal ย้ายขึ้น cloud (สมัครใจ), `public` schema + RLS per-uid, consent log แบบ append-only, ลบ/ส่งออกข้อมูลได้ | ผ่านรีวิว PDPA โดยที่ปรึกษากฎหมายก่อนเปิด; privacy notice ภาษาไทยเขียนก่อน schema | ⬜ |
 | A5 Trends จริง | กระแสจากข้อมูลจริงภายใต้ k-anonymity (≥25 ผู้ใช้ ≥3 จังหวัดต่อหนึ่งเทรนด์) | หน้ากระแสแสดงข้อมูลจริงโดยพิสูจน์ได้ว่าไม่เปิดเผยรายบุคคล | ⬜ |

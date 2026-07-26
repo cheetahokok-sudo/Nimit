@@ -7,6 +7,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'core/router/app_router.dart';
 import 'core/theme/nimit_theme.dart';
 import 'data/providers.dart';
+import 'data/remote/postgrest_dream_repository.dart';
 import 'data/remote/postgrest_sources_repository.dart';
 
 /// Set via --dart-define. When enabled and configured, the sources screen
@@ -28,13 +29,21 @@ Future<void> main() async {
     ProviderScope(
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
-        if (_useRemote && _supabaseUrl.isNotEmpty && _supabaseAnonKey.isNotEmpty)
+        if (_useRemote && _supabaseUrl.isNotEmpty && _supabaseAnonKey.isNotEmpty) ...[
           sourcesRepositoryProvider.overrideWithValue(
             PostgrestSourcesRepository(
               baseUrl: _supabaseUrl,
               anonKey: _supabaseAnonKey,
             ),
           ),
+          // The core loop: เล่าความฝัน → real analysis from the live library.
+          dreamRepositoryProvider.overrideWithValue(
+            PostgrestDreamRepository(
+              baseUrl: _supabaseUrl,
+              anonKey: _supabaseAnonKey,
+            ),
+          ),
+        ],
       ],
       child: const NimitApp(),
     ),

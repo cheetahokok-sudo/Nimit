@@ -46,6 +46,7 @@ class SymbolInterpretation {
     this.sourceId,
     this.locatorTh,
     this.quoteTh,
+    this.contextNoteTh,
   });
 
   final SourceTier tier;
@@ -61,6 +62,10 @@ class SymbolInterpretation {
 
   final String? quoteTh;
 
+  /// Editorial framing the reader needs alongside the claim — e.g. that
+  /// Buddhist dream literature is social prophecy, not lottery guidance.
+  final String? contextNoteTh;
+
   Map<String, dynamic> toJson() => {
         'tier': tier.code,
         'sourceNameTh': sourceNameTh,
@@ -68,6 +73,7 @@ class SymbolInterpretation {
         if (sourceId != null) 'sourceId': sourceId,
         if (locatorTh != null) 'locatorTh': locatorTh,
         if (quoteTh != null) 'quoteTh': quoteTh,
+        if (contextNoteTh != null) 'contextNoteTh': contextNoteTh,
       };
 
   factory SymbolInterpretation.fromJson(Map<String, dynamic> json) =>
@@ -75,9 +81,10 @@ class SymbolInterpretation {
         tier: SourceTier.fromCode(json['tier'] as String?),
         sourceNameTh: json['sourceNameTh'] as String,
         textTh: json['textTh'] as String,
-        sourceId: json['sourceId'] as String?,
+        sourceId: json['sourceId']?.toString(),
         locatorTh: json['locatorTh'] as String?,
         quoteTh: json['quoteTh'] as String?,
+        contextNoteTh: json['contextNoteTh'] as String?,
       );
 }
 

@@ -122,15 +122,30 @@ class _DreamResultScreenState extends ConsumerState<DreamResultScreen> {
         const SizedBox(height: 20),
         const SectionHeader('สัญลักษณ์ที่พบ'),
         const SizedBox(height: 10),
-        Wrap(
-          spacing: 8,
-          runSpacing: 8,
-          children: [
-            for (final s in analysis.symbols)
-              Chip(label: Text('${s.nameTh}  •  ${s.count}')),
-          ],
-        ),
+        if (analysis.symbols.isEmpty)
+          const SectionCard(
+            color: NimitColors.pastelLavender,
+            child: DisclaimerText(
+                'ยังไม่พบสัญลักษณ์ที่รู้จักในคลัง — ลองเล่าด้วยคำที่เจาะจงขึ้น '
+                'เช่น สิ่งที่เห็น สัตว์ สถานที่ หรือเหตุการณ์ในฝัน'),
+          )
+        else
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              for (final s in analysis.symbols)
+                Chip(label: Text('${s.nameTh}  •  ${s.count}')),
+            ],
+          ),
         const SizedBox(height: 16),
+        if (analysis.symbols.isNotEmpty && analysis.interpretations.isEmpty)
+          const Padding(
+            padding: EdgeInsets.only(bottom: 12),
+            child: DisclaimerText(
+                'พบสัญลักษณ์ในคลัง แต่ยังไม่มีคำแปลที่ผ่านการตรวจสอบแหล่งที่มา — '
+                'นิมิตจะไม่แต่งคำแปลขึ้นเองโดยไม่มีตำรารองรับ'),
+          ),
         for (final interp in analysis.interpretations) ...[
           SectionCard(
             child: Column(
@@ -141,24 +156,66 @@ class _DreamResultScreenState extends ConsumerState<DreamResultScreen> {
                     SourceBadge(interp.tier, size: 32),
                     const SizedBox(width: 10),
                     Expanded(
-                      child: Text(interp.sourceNameTh,
-                          style: textTheme.labelMedium!
-                              .copyWith(color: NimitColors.inkSoft)),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Text(interp.sourceNameTh,
+                              style: textTheme.labelMedium!
+                                  .copyWith(color: NimitColors.inkSoft)),
+                          if (interp.locatorTh != null)
+                            Text(interp.locatorTh!,
+                                style: textTheme.labelSmall!
+                                    .copyWith(color: NimitColors.inkSoft)),
+                        ],
+                      ),
                     ),
                   ],
                 ),
                 const SizedBox(height: 10),
                 Text(interp.textTh, style: textTheme.bodyMedium),
+                if (interp.quoteTh != null) ...[
+                  const SizedBox(height: 10),
+                  // Verbatim source text — present only when the server
+                  // decided the underlying work's rights permit it.
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(12),
+                    decoration: BoxDecoration(
+                      color: NimitColors.creamDeep,
+                      borderRadius: BorderRadius.circular(12),
+                      border: const Border(
+                          left: BorderSide(
+                              color: NimitColors.goldDeep, width: 3)),
+                    ),
+                    child: Text(interp.quoteTh!,
+                        style: textTheme.bodySmall!.copyWith(
+                            fontStyle: FontStyle.italic,
+                            color: NimitColors.ink)),
+                  ),
+                ],
+                if (interp.contextNoteTh != null) ...[
+                  const SizedBox(height: 10),
+                  Text(interp.contextNoteTh!,
+                      style: textTheme.bodySmall!
+                          .copyWith(color: NimitColors.warnInk)),
+                ],
               ],
             ),
           ),
           const SizedBox(height: 12),
         ],
         const SizedBox(height: 6),
-        const SectionHeader('เลขเชิงสัญลักษณ์',
-            caption: 'สร้างจากสัญลักษณ์ในฝัน ไม่ใช่โอกาสถูกรางวัล'),
-        const SizedBox(height: 10),
-        NumberPillRow(analysis.numbers),
+        if (analysis.numbers.isNotEmpty) ...[
+          const SectionHeader('เลขเชิงสัญลักษณ์',
+              caption: 'สร้างจากสัญลักษณ์ในฝัน ไม่ใช่โอกาสถูกรางวัล'),
+          const SizedBox(height: 10),
+          NumberPillRow(analysis.numbers),
+        ] else if (analysis.interpretations.isNotEmpty)
+          // Honest absence: Buddhist canonical sources never map to numbers,
+          // so a canon-only result correctly has none — say so rather than
+          // showing an empty header.
+          const DisclaimerText(
+              'แหล่งที่อ้างอิงในผลนี้ไม่ผูกเลขกับสัญลักษณ์'),
         const SizedBox(height: 22),
         Row(
           children: [
