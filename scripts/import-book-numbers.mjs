@@ -1,0 +1,209 @@
+#!/usr/bin/env node
+// ============================================================================
+// Turn a page-by-page reading of an owned book into SQL.
+//
+// The library has 81 symbols and ZERO published numbers, so the ฝัน→เลข→ตรวจหวย
+// loop has nothing to carry. Numbers only exist in books, and reading them is
+// human work. This script exists so that the human part is nothing but typing
+// what is on the page.
+//
+// Usage:
+//   node scripts/import-book-numbers.mjs entries.tsv > out.sql
+//   node scripts/import-book-numbers.mjs entries.tsv --edition fan-phayakon-owned
+//
+// INPUT — tab-separated, one line per (symbol, page). Blank lines and lines
+// starting with # are ignored.
+//
+//   หน้า <TAB> คำ <TAB> เลข <TAB> ความหมายสั้น
+//   12	ช้าง	91,19,019	ดี ได้ผู้ใหญ่อุปถัมภ์
+//
+// USE A TEXT EDITOR, NOT A SPREADSHEET. Excel and Google Sheets silently
+// convert 09 to 9, and '09' and '9' are different lottery numbers. That single
+// behaviour would corrupt the column this whole exercise exists to fill, and it
+// would do it invisibly. Everything here is treated as a string end to end —
+// there is no parseInt anywhere in this file, deliberately.
+//
+// WHAT GETS WRITTEN, AND WHY IT IS DRAFT
+//
+// ฝันพยากรณ์ is copyrighted (copyrighted_cite_only), so:
+//   * passages carry a page LOCATOR and no original_text_th — the firewall
+//     rejects verbatim text from a copyrighted work, correctly;
+//   * every row lands as status='draft'.
+//
+// Draft is not timidity. A belief recorded in one book is that publisher's
+// expression; the same belief attested across several independent books is a
+// cultural fact that nobody owns. Publishing needs a second source, which is
+// also why the resulting content is worth trusting. Corroborate, then publish.
+//
+// The TSV itself is working notes and a systematic extraction of one book's
+// number table — it belongs in the private repo or on disk, never here. See
+// supabase/seeds/incoming/README.md.
+// ============================================================================
+
+import { readFileSync } from 'node:fs';
+
+const args = process.argv.slice(2);
+const file = args.find((a) => !a.startsWith('--'));
+const editionIdx = args.indexOf('--edition');
+const CITEKEY = editionIdx >= 0 ? args[editionIdx + 1] : 'fan-phayakon-owned';
+const TRADITION = 'folk-central';
+
+if (!file) {
+  console.error('usage: node scripts/import-book-numbers.mjs <entries.tsv> [--edition citekey]');
+  process.exit(2);
+}
+
+const q = (s) => `'${String(s).replace(/'/g, "''")}'`;
+
+const raw = readFileSync(file, 'utf8');
+const rows = [];
+const problems = [];
+
+raw.split(/\r?\n/).forEach((line, i) => {
+  const n = i + 1;
+  if (!line.trim() || line.trimStart().startsWith('#')) return;
+
+  const cols = line.split('\t').map((c) => c.trim());
+  if (cols.length < 3) {
+    problems.push(`บรรทัด ${n}: ต้องมีอย่างน้อย 3 คอลัมน์ คั่นด้วย TAB — พบ ${cols.length}`);
+    return;
+  }
+  const [page, word, numbers, gist = ''] = cols;
+
+  // Skip a header row if the file has one.
+  if (page === 'หน้า' || page.toLowerCase() === 'page') return;
+
+  if (!/^[0-9๐-๙]+$/.test(page)) {
+    problems.push(`บรรทัด ${n}: เลขหน้า "${page}" ไม่ใช่ตัวเลข`);
+    return;
+  }
+  if (!word) {
+    problems.push(`บรรทัด ${n}: ไม่มีคำ/สัญลักษณ์`);
+    return;
+  }
+
+  const nums = numbers.split(/[,\s、]+/).map((x) => x.trim()).filter(Boolean);
+  if (nums.length === 0) {
+    problems.push(`บรรทัด ${n}: ไม่มีเลข`);
+    return;
+  }
+  for (const num of nums) {
+    if (!/^[0-9]{1,3}$/.test(num)) {
+      problems.push(`บรรทัด ${n}: เลข "${num}" ไม่ถูกต้อง (ต้องเป็นตัวเลข 1-3 หลัก)`);
+      continue;
+    }
+    rows.push({ page, word, num, gist });
+  }
+});
+
+if (problems.length) {
+  console.error(`\n== พบปัญหา ${problems.length} รายการ — ยังไม่สร้าง SQL ==`);
+  for (const p of problems) console.error('   ' + p);
+  console.error('\nแก้ไฟล์แล้วรันใหม่อีกครั้ง\n');
+  process.exit(1);
+}
+
+if (rows.length === 0) {
+  console.error('ไม่พบรายการในไฟล์');
+  process.exit(1);
+}
+
+// A number written both as '9' and '09' for the same word is almost certainly a
+// spreadsheet having eaten a leading zero. Warn loudly rather than write both.
+const byWord = new Map();
+for (const r of rows) {
+  const k = r.word;
+  if (!byWord.has(k)) byWord.set(k, new Set());
+  byWord.get(k).add(r.num);
+}
+for (const [word, set] of byWord) {
+  for (const n of set) {
+    if (n.length < 3 && set.has(n.padStart(n.length + 1, '0'))) {
+      console.error(`คำเตือน: "${word}" มีทั้ง ${n} และ ${n.padStart(n.length + 1, '0')} — `
+        + 'ตรวจสอบว่าโปรแกรมตารางกินเลขศูนย์นำหน้าไปหรือไม่');
+    }
+  }
+}
+
+const pages = [...new Set(rows.map((r) => r.page))].sort((a, b) => a.localeCompare(b, 'th', { numeric: true }));
+const words = [...new Set(rows.map((r) => r.word))];
+
+const stamp = new Date().toISOString().slice(0, 10);
+const out = [];
+
+out.push(`-- ============================================================================`);
+out.push(`-- GENERATED by scripts/import-book-numbers.mjs on ${stamp}`);
+out.push(`-- source file : ${file}`);
+out.push(`-- edition     : ${CITEKEY}`);
+out.push(`-- ${rows.length} number rows · ${words.length} distinct words · ${pages.length} pages`);
+out.push(`--`);
+out.push(`-- Everything lands as status='draft'. Publishing a claim drawn from a single`);
+out.push(`-- copyrighted book requires a second independent source first — that is what`);
+out.push(`-- turns "this publisher's text" into "a cultural fact", and it is also what`);
+out.push(`-- makes the reading worth trusting.`);
+out.push(`--`);
+out.push(`-- No original_text_th is written: the source is copyrighted_cite_only and the`);
+out.push(`-- firewall rejects verbatim text from it. The page locator is what lets a`);
+out.push(`-- reader open the book and check us.`);
+out.push(`-- ============================================================================`);
+out.push('');
+
+// --- passages, one per page --------------------------------------------------
+out.push(`insert into content.passage`);
+out.push(`  (edition_id, locator, sequence, original_text_th, modern_th,`);
+out.push(`   transcribed_by, transcription_note_th, status)`);
+out.push(`select e.id, v.locator, 1, null, v.modern,`);
+out.push(`  'เจ้าของโครงการ อ่านจากฉบับพิมพ์ที่ถือครอง',`);
+out.push(`  'ไม่เก็บข้อความต้นฉบับ — บันทึกเฉพาะข้อเท็จจริงว่าตำราผูกเลขใดกับสัญลักษณ์ใด',`);
+out.push(`  'published'`);
+out.push(`from (values`);
+out.push(pages.map((p) => `  (${q('หน้า ' + p)}, ${q('รายการคำทำนายฝันและเลขประจำสัญลักษณ์ หน้า ' + p)})`).join(',\n'));
+out.push(`) as v(locator, modern)`);
+out.push(`cross join content.edition e where e.citekey = ${q(CITEKEY)}`);
+out.push(`on conflict (edition_id, locator, sequence) do nothing;`);
+out.push('');
+
+// --- number associations -----------------------------------------------------
+// Symbol matching happens in SQL, against symbol_term, because that is where
+// the lexicon lives — the script has no database access and must not guess.
+out.push(`with entries(word, num, page, gist) as (values`);
+out.push(rows.map((r) => `  (${q(r.word)}, ${q(r.num)}, ${q(r.page)}, ${q(r.gist)})`).join(',\n'));
+out.push(`),`);
+out.push(`ed as (select id from content.edition where citekey = ${q(CITEKEY)}),`);
+out.push(`tr as (select id from content.tradition where slug = ${q(TRADITION)})`);
+out.push(`insert into content.number_association`);
+out.push(`  (symbol_id, number, passage_id, tradition_id, note_th, status)`);
+out.push(`select distinct on (s.id, e.num) s.id, e.num, p.id, tr.id,`);
+out.push(`  'เลขประจำสัญลักษณ์ตามตำราทำนายฝันร่วมสมัย'`);
+out.push(`    || case when e.gist <> '' then ' — ' || e.gist else '' end`);
+out.push(`    || ' | รอสอบทานกับแหล่งที่สองก่อนเผยแพร่',`);
+out.push(`  'draft'`);
+out.push(`from entries e`);
+out.push(`join content.symbol_term t on t.term = e.word`);
+out.push(`join content.symbol s on s.id = t.symbol_id`);
+out.push(`join ed on true`);
+out.push(`join content.passage p on p.edition_id = ed.id and p.locator = 'หน้า ' || e.page`);
+out.push(`cross join tr`);
+out.push(`on conflict (symbol_id, number, tradition_id) do nothing;`);
+out.push('');
+
+// --- report ------------------------------------------------------------------
+out.push(`-- Words with no symbol in the lexicon yet. These produced NO rows above;`);
+out.push(`-- add them to a dream_symbols seed, then re-run this file.`);
+out.push(`with entries(word) as (values`);
+out.push(words.map((w) => `  (${q(w)})`).join(',\n'));
+out.push(`)`);
+out.push(`select e.word as "ยังไม่มีในคลัง — ต้องเพิ่มสัญลักษณ์ก่อน"`);
+out.push(`from entries e`);
+out.push(`where not exists (select 1 from content.symbol_term t where t.term = e.word)`);
+out.push(`order by 1;`);
+out.push('');
+out.push(`select`);
+out.push(`  (select count(*) from content.number_association) as number_rows_total,`);
+out.push(`  (select count(*) from content.number_association where status = 'draft') as draft,`);
+out.push(`  (select count(*) from content.number_association where status = 'published') as published;`);
+
+process.stdout.write(out.join('\n') + '\n');
+console.error(`\n== สร้าง SQL แล้ว: ${rows.length} เลข · ${words.length} คำ · ${pages.length} หน้า`);
+console.error(`   นำไปรันใน Supabase SQL Editor หรือ psql`);
+console.error(`   คำที่ยังไม่มีในคลังจะถูกรายงานท้ายไฟล์ (ไม่ถูกบันทึก)\n`);

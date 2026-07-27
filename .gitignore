@@ -34,3 +34,8 @@ supabase/.temp/
 # The import *scripts* belong in this repo; the content does not.
 corpus/
 content-payloads/
+
+# Book-entry payloads: facts line by line, but a whole book systematically
+# extracted is close to copying the publisher's table. Script public, corpus not.
+supabase/seeds/incoming/*.tsv
+!supabase/seeds/incoming/TEMPLATE.tsv
