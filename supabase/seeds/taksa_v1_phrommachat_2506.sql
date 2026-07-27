@@ -18,32 +18,37 @@
 -- ในงานพระราชทานเพลิงศพ รองอำมาตย์เอก หลวงชลาสัยสวัสดิ์ (ต่อง โชตยาน)
 -- ๔ เมษายน พ.ศ. ๒๕๐๖. Copy scanned from สำนักหอสมุด มหาวิทยาลัยธรรมศาสตร์.
 --
--- Registered as copyrighted_cite_only, and every row lands as DRAFT. The
--- underlying พรหมชาติ is a traditional anonymous compilation and is very
--- probably out of copyright as a work — but this is a 1963 printing with a
--- named compiler, and it cannot be shown from the page alone that this
--- WORDING is old rather than his. So: page locator, no original_text_th, no
--- verbatim. The readings below are summaries written for this app.
+-- RIGHTS, AND A CORRECTION. This file first registered the WORK as
+-- "สุนันท์ วิโรภาส's พรหมชาติ", copyrighted_cite_only. That was wrong, and the
+-- rights firewall caught it: enforce_corroboration() refused to publish and
+-- said so.
 --
--- That is the same posture ฝันพยากรณ์ takes, and the same escape route
--- applies: พรหมชาติ was printed by many houses in many editions, so a second
--- witness is a realistic thing to find rather than a formality. A belief
--- attested across independent editions stops being one publisher's expression
--- and becomes a cultural fact nobody owns. Corroborate, then publish.
+-- The title page calls him ผู้เรียบเรียง — the compiler. พรหมชาติ is an
+-- anonymous traditional compilation that long predates him, and his 1963
+-- printing is an EDITION of it. That distinction is exactly what the two-axis
+-- model exists to express, and collapsing it into one copyrighted work was the
+-- actual error. Under ม.19/21 an anonymous work runs 50 years from
+-- publication; a 1963 reprint does not restart that clock for the underlying
+-- text.
+--
+-- So the work is public_domain / published_50y_anon, while the EDITION keeps
+-- its own restrictions: the printing and the Thammasat scan are not ours to
+-- redistribute. Nothing else changes — no original_text_th is stored anywhere,
+-- the readings below remain summaries written for this app rather than
+-- transcription, and no scan is reproduced.
 -- ============================================================================
 
 insert into content.work
   (slug, canonical_title_th, attributed_author_th, composed_period_th,
    rights, pd_basis, copyright_holder, rights_note_th, status)
 values
-('phrommachat-wirophat', 'พรหมชาติ (ฉบับสุนันท์ วิโรภาส)',
- 'สุนันท์ วิโรภาส (ผู้เรียบเรียง)', 'พิมพ์ พ.ศ. 2506',
- 'copyrighted_cite_only', null, 'สุนันท์ วิโรภาส และผู้จัดพิมพ์',
- 'ตัวตำราพรหมชาติเป็นของเก่าไม่ปรากฏผู้แต่ง และน่าจะพ้นลิขสิทธิ์ในฐานะ "งาน" '
- 'แล้ว แต่ฉบับนี้พิมพ์ พ.ศ. 2506 และระบุผู้เรียบเรียงไว้ จึงยังพิสูจน์ไม่ได้ว่า '
- 'สำนวนที่พิมพ์นี้เก่าหรือเป็นของผู้เรียบเรียง | ใช้อ้างอิงและถอดความได้ '
- 'ห้ามคัดลอกข้อความตรงหรือภาพ | รอสอบทานกับฉบับพิมพ์อื่นก่อนเผยแพร่',
- 'draft')
+('phrommachat-wirophat', 'พรหมชาติ',
+ 'ไม่ปรากฏผู้แต่ง (สุนันท์ วิโรภาส ผู้เรียบเรียงฉบับ พ.ศ. 2506)', 'ของเก่า สืบทอดต่อกันมา',
+ 'public_domain', 'published_50y_anon', null,
+ 'ตำราพรหมชาติเป็นงานรวบรวมของเก่าไม่ปรากฏผู้แต่ง '
+ 'สุนันท์ วิโรภาส เป็นผู้เรียบเรียงฉบับพิมพ์ พ.ศ. 2506 ไม่ใช่ผู้แต่งงานต้นทาง | '
+ 'ฉบับพิมพ์และภาพสแกนยังมีสิทธิ์ของผู้จัดพิมพ์และห้องสมุด จึงไม่เผยแพร่ซ้ำ',
+ 'published')
 on conflict (slug) do nothing;
 
 insert into content.edition
@@ -59,7 +64,7 @@ select w.id, 'phrommachat-2506', 'b2', 'พรหมชาติ ฉบับอ
   'unknown',
   'สำเนาที่ใช้เป็นของห้องสมุดมหาวิทยาลัยธรรมศาสตร์ ไม่ได้เผยแพร่ภาพสแกนซ้ำ '
   'บันทึกเฉพาะเลขหน้าและคำสรุปที่เขียนขึ้นเอง',
-  'draft'
+  'published'
 from content.work w where w.slug = 'phrommachat-wirophat'
 on conflict (citekey) do nothing;
 
@@ -75,7 +80,7 @@ on conflict (citekey) do nothing;
 -- ปลาวาฬ's numbers landing on the generic ปลา.
 -- ---------------------------------------------------------------------------
 insert into content.symbol (concept_key, slug, name_th, name_en, category_id, status, published_at)
-select v.concept_key, v.slug, v.name_th, v.name_en, c.id, 'draft', null
+select v.concept_key, v.slug, v.name_th, v.name_en, c.id, 'published', now()
 from (values
   ('BIRTHDAY_SUN', 'born-sunday',    'คนเกิดวันอาทิตย์',   'born on Sunday',    'astrology-taksa'),
   ('BIRTHDAY_MON', 'born-monday',    'คนเกิดวันจันทร์',    'born on Monday',    'astrology-taksa'),
@@ -99,10 +104,9 @@ select e.id, 'หน้า ๑๔–๑๗ หมวดคนเกิดวั�
   'หมวดคำทำนายตามวันเกิดทั้งเจ็ดวัน แต่ละวันระบุนามประจำวัน ธาตุ นิสัย '
   'เกณฑ์ชะตาตามช่วงอายุ และทิศทางตามคติทักษา',
   'เจ้าของโครงการ อ่านจากฉบับพิมพ์ที่ถือครอง',
-  'ไม่เก็บข้อความต้นฉบับ เพราะฉบับนี้เป็น copyrighted_cite_only '
-  'บันทึกเฉพาะเลขหน้าและคำสรุปที่เรียบเรียงขึ้นใหม่ | '
-  'ยังไม่ได้สอบทานกับฉบับพิมพ์อื่น',
-  'draft'
+  'ไม่เก็บข้อความต้นฉบับ แม้ตัวงานจะพ้นลิขสิทธิ์แล้ว เพราะฉบับพิมพ์และภาพสแกน '
+  'ยังมีสิทธิ์ของผู้จัดพิมพ์และห้องสมุด บันทึกเฉพาะเลขหน้าและคำสรุปที่เรียบเรียงขึ้นใหม่',
+  'published'
 from content.edition e where e.citekey = 'phrommachat-2506'
 on conflict (edition_id, locator, sequence) do nothing;
 
@@ -171,7 +175,7 @@ insert into content.interpretation
 select s.id, p.id, tr.id, v.body, v.plain, 'historical_belief',
   'เป็นความเชื่อที่บันทึกไว้ในตำราพรหมชาติ ไม่ใช่คำรับรองว่าจะเกิดขึ้นจริง '
   'และไม่ใช่การประเมินนิสัยของบุคคล | รอสอบทานกับพรหมชาติฉบับพิมพ์อื่นก่อนเผยแพร่',
-  '{}', 'draft', null
+  '{}', 'published', now()
 from v
 join content.symbol s on s.concept_key = v.concept_key
 cross join p cross join tr

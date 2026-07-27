@@ -9,6 +9,7 @@ import 'package:nimit/data/models/library.dart';
 import 'package:nimit/data/models/lottery.dart';
 import 'package:nimit/data/providers.dart';
 import 'package:nimit/data/repositories/repositories.dart';
+import 'package:nimit/features/fortune/celestial_orb.dart';
 import 'package:nimit/features/lottery/lottery_widgets.dart';
 import 'package:nimit/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -299,6 +300,27 @@ void main() {
 
     expect(find.text('ยังไม่มีตำราในคลังที่ทำนายจากวันเกิด'), findsOneWidget);
     expect(find.textContaining('ยังโหลดคำทำนายไม่ได้'), findsNothing);
+  });
+
+  testWidgets('the hero card does not overflow at 320 px, orb and all',
+      (tester) async {
+    // The orbit motif occupies the right of the card, so the text column is
+    // sized against it explicitly. This is the narrowest phone width worth
+    // supporting; an earlier card on this screen shipped with colliding text,
+    // and the fix has to be held in place by something other than good luck.
+    tester.view.physicalSize = const Size(320, 720);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    SharedPreferences.setMockInitialValues(
+        {'nimit.birth.v2': '{"date":"2026-07-29"}'});
+    await pumpApp(tester);
+    appRouter.go('/fortune');
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.byType(CelestialOrb), findsOneWidget);
+    expect(find.text('ข้อมูลเกิดครบแล้ว'), findsOneWidget);
   });
 
   testWidgets('the date picker survives a 360 px phone', (tester) async {

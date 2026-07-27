@@ -1,3 +1,5 @@
+import 'dart:math' as math;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
@@ -9,6 +11,11 @@ import '../../core/utils/thai_date.dart';
 import '../../core/widgets/section.dart';
 import '../../data/models/fortune.dart';
 import '../../data/providers.dart';
+import 'celestial_orb.dart';
+
+/// Diameter of the orbit motif on the hero card. Referenced by the layout so
+/// the text column and the graphic can never disagree about the space.
+const double _orbSize = 168;
 
 /// ดวงของฉัน.
 ///
@@ -164,27 +171,56 @@ class _HeroCard extends ConsumerWidget {
       child: InkWell(
         onTap: onTap,
         borderRadius: BorderRadius.circular(22),
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('วันนี้ทางจันทรคติ',
-                  style: textTheme.labelMedium!
-                      .copyWith(color: NimitColors.gold, letterSpacing: 0.6)),
-              const SizedBox(height: 8),
-              Text(headline,
-                  style: textTheme.headlineMedium!.copyWith(
-                    color: NimitColors.onDark,
-                    fontWeight: FontWeight.w800,
-                    height: 1.25,
-                  )),
-              const SizedBox(height: 10),
-              _HeroSubtitle(birth: birth, todayLunar: todayLunar),
-              const SizedBox(height: 16),
-              _HeroPill(isSet: isSet),
-            ],
-          ),
+        // Clipped so the orb can bleed off the right edge. A motif that stops
+        // short of the border reads as a sticker; one that runs past it reads
+        // as a window onto something larger.
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(22),
+          child: LayoutBuilder(builder: (context, constraints) {
+            // The text column is sized EXPLICITLY rather than left to fill the
+            // Stack. A previous version of a card on this screen shipped with
+            // colliding text, and "it looked fine on my device" is how that
+            // happens: the orb occupies the right, so the words are told how
+            // much room they actually have and wrap inside it.
+            final textWidth =
+                math.max(160.0, constraints.maxWidth - _orbSize * 0.82);
+
+            return Stack(
+              children: [
+                Positioned(
+                  right: -_orbSize * 0.16,
+                  top: -_orbSize * 0.10,
+                  child: const CelestialOrb(size: _orbSize),
+                ),
+                Padding(
+                  padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+                  child: SizedBox(
+                    width: textWidth,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        Text('วันนี้ทางจันทรคติ',
+                            style: textTheme.labelMedium!.copyWith(
+                                color: NimitColors.gold, letterSpacing: 0.6)),
+                        const SizedBox(height: 8),
+                        Text(headline,
+                            style: textTheme.headlineSmall!.copyWith(
+                              color: NimitColors.onDark,
+                              fontWeight: FontWeight.w800,
+                              height: 1.3,
+                            )),
+                        const SizedBox(height: 10),
+                        _HeroSubtitle(birth: birth, todayLunar: todayLunar),
+                        const SizedBox(height: 16),
+                        _HeroPill(isSet: isSet),
+                      ],
+                    ),
+                  ),
+                ),
+              ],
+            );
+          }),
         ),
       ),
     );
