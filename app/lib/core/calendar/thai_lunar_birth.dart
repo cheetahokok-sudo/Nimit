@@ -1,5 +1,7 @@
 import 'package:thai_lunar/thai_lunar.dart';
 
+import '../utils/thai_date.dart';
+
 /// Resolving a birth date to a Thai lunar date, for ดวงของฉัน.
 ///
 /// The arithmetic is package:thai_lunar. This repo implemented สุริยยาตร์
@@ -107,6 +109,15 @@ class ThaiLunarBirth {
 
   String get lunarDateTh =>
       '$phaseTh ${lunar.day} ค่ำ $monthNameTh พ.ศ. ${lunar.beYear}';
+
+  /// The same date in the register a ตำรา uses: Thai numerals, no year.
+  ///
+  /// "ขึ้น ๑๒ ค่ำ เดือนห้า" is how the tradition names a day, and it is what
+  /// the screen leads with. [lunarDateTh] keeps Arabic digits and the year for
+  /// places that need to be read as data rather than felt.
+  String get lunarDateArchaicTh =>
+      '$phaseTh ${thaiDigits(lunar.day)} ค่ำ $monthNameTh';
+
 
   static const _weekdayNames = <String>[
     'วันจันทร์',

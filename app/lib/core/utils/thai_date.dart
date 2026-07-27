@@ -53,3 +53,17 @@ DateTime nextDrawDate(DateTime from) {
   if (day <= 16) return DateTime(from.year, from.month, 16);
   return DateTime(from.year, from.month + 1, 1);
 }
+
+/// Arabic digits to Thai numerals: 12 → ๑๒.
+///
+/// Used where the app speaks in the register of a ตำรา rather than a form.
+/// A lunar date written "ขึ้น ๑๒ ค่ำ เดือนห้า" carries the weight the tradition
+/// gives it; the same line in Arabic digits reads like a receipt. Deliberately
+/// NOT used for anything the reader must treat as a quantity — money, ticket
+/// numbers, ages — where familiarity beats atmosphere.
+String thaiDigits(Object value) {
+  const th = ['๐', '๑', '๒', '๓', '๔', '๕', '๖', '๗', '๘', '๙'];
+  return value
+      .toString()
+      .replaceAllMapped(RegExp(r'[0-9]'), (m) => th[int.parse(m[0]!)]);
+}

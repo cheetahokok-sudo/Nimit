@@ -188,20 +188,21 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.text('ดวงของฉัน'), findsOneWidget);
-    expect(find.text('เก็บไว้ในเครื่องนี้เท่านั้น'), findsOneWidget);
+    expect(find.text('ข้อมูลเกิดครบแล้ว'), findsNothing,
+        reason: 'no date stored yet, so the pill must not claim one');
     // The privacy card must name the field it actually stores. A date of birth
     // is more identifying than a month, so the copy may not soften it.
-    expect(find.text('เก็บ: วันเดือนปีเกิด'), findsOneWidget);
-    expect(find.text('วัน'), findsOneWidget);
-    expect(find.text('เดือน'), findsOneWidget);
-    expect(find.text('ปี พ.ศ.'), findsOneWidget);
+    expect(find.textContaining('เก็บวันเดือนปีเกิดไว้ในเครื่องนี้เท่านั้น'),
+        findsOneWidget);
+    expect(find.text('แตะเพื่อบอกวันเกิด'), findsOneWidget);
 
     expect(find.textContaining('ลัคนา'), findsNothing);
     expect(find.textContaining('ข้อมูลเกิดครบ'), findsNothing);
     expect(find.textContaining('เลขประจำดวง'), findsNothing);
 
     // Nothing chosen yet, so no lunar date exists to be shown.
-    expect(find.textContaining('ตรงกับวันทางจันทรคติ'), findsNothing);
+    // No birth date stored, so no derived facts may be shown.
+    expect(find.text('คำนวณจากวันเกิดของท่าน'), findsNothing);
   });
 
   testWidgets('a complete birth date shows a real lunar date, not a reading',
@@ -222,7 +223,7 @@ void main() {
     appRouter.go('/fortune');
     await tester.pumpAndSettle();
 
-    expect(find.text('ขึ้น 15 ค่ำ เดือนแปดหลัง พ.ศ. 2569'), findsOneWidget);
+    expect(find.text('ขึ้น ๑๕ ค่ำ เดือนแปดหลัง'), findsOneWidget);
     expect(find.text('อธิกมาส · ปกติวาร'), findsOneWidget);
     // The computed lookup keys a future ตำรา reading will be found by.
     expect(find.text('วันพุธ'), findsOneWidget);
@@ -231,8 +232,8 @@ void main() {
     expect(find.textContaining('ไม่ใช่เดือนเก้า'), findsOneWidget);
 
     // A calendar conversion is shown; a prediction is not.
-    expect(find.text('ยังไม่มีตำราในคลังที่ทำนายจากวันเดือนปีเกิด'), findsOneWidget);
-    expect(find.text('ลบวันเกิดออกจากเครื่อง'), findsOneWidget);
+    expect(find.text('ยังไม่มีตำราในคลังที่ทำนายจากวันเกิด'), findsOneWidget);
+    expect(find.text('ลบ'), findsOneWidget);
   });
 
   testWidgets('a legacy month-only profile asks for the rest, not for nothing',
@@ -251,7 +252,8 @@ void main() {
 
     expect(find.textContaining('เดิมคุณบอกไว้แค่เดือน กรกฎาคม'), findsOneWidget);
     // And no lunar date is claimed, because a month alone cannot produce one.
-    expect(find.textContaining('ตรงกับวันทางจันทรคติ'), findsNothing);
+    // No birth date stored, so no derived facts may be shown.
+    expect(find.text('คำนวณจากวันเกิดของท่าน'), findsNothing);
   });
 
   testWidgets('a ทักษา reading renders with its citation', (tester) async {
@@ -271,13 +273,14 @@ void main() {
     await tester.pumpAndSettle();
 
     // Summary and body are separately present, asserted on text unique to each.
-    expect(find.textContaining('ขยันและรู้งานรอบด้าน'), findsOneWidget);
+    // Once in the hero subtitle, once in the reading card below it.
+    expect(find.textContaining('ขยันและรู้งานรอบด้าน'), findsNWidgets(2));
     expect(find.textContaining('ให้นามประจำวันพุธว่า'), findsOneWidget);
     // A reading may never appear without a source line.
     expect(find.textContaining('ที่มา: พรหมชาติ'), findsOneWidget);
     expect(find.textContaining('พ.ศ. 2506'), findsOneWidget);
     // And the empty state must be gone.
-    expect(find.text('ยังไม่มีตำราในคลังที่ทำนายจากวันเดือนปีเกิด'), findsNothing);
+    expect(find.text('ยังไม่มีตำราในคลังที่ทำนายจากวันเกิด'), findsNothing);
   });
 
   testWidgets('no published reading shows the honest empty state, not an error',
@@ -294,7 +297,7 @@ void main() {
     appRouter.go('/fortune');
     await tester.pumpAndSettle();
 
-    expect(find.text('ยังไม่มีตำราในคลังที่ทำนายจากวันเดือนปีเกิด'), findsOneWidget);
+    expect(find.text('ยังไม่มีตำราในคลังที่ทำนายจากวันเกิด'), findsOneWidget);
     expect(find.textContaining('ยังโหลดคำทำนายไม่ได้'), findsNothing);
   });
 
@@ -309,7 +312,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
-    expect(find.text('ปี พ.ศ.'), findsOneWidget);
+    expect(find.text('แตะเพื่อบอกวันเกิด'), findsOneWidget);
   });
 
 

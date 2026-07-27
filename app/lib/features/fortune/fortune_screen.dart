@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:thai_lunar/thai_lunar.dart' show isWanPhra;
 
 import '../../core/calendar/thai_lunar_birth.dart';
 import '../../core/theme/nimit_theme.dart';
@@ -9,35 +10,34 @@ import '../../core/widgets/section.dart';
 import '../../data/models/fortune.dart';
 import '../../data/providers.dart';
 
-/// ดวงของฉัน — a birth date, held on this device, converted to the Thai lunar
-/// calendar.
+/// ดวงของฉัน.
 ///
-/// WHAT THIS SCREEN USED TO DO. It displayed a ลัคนา, a gold badge claiming the
-/// user's birth data was on file, four "เลขประจำดวง" and a line of financial
-/// advice — every one of them a constant in a mock, none backed by anything the
-/// user had entered. All of it is gone.
+/// WHAT THIS SCREEN ONCE DID. It showed a ลัคนา, a badge claiming the user's
+/// birth data was on file, four "เลขประจำดวง" and a line of money advice —
+/// every one a constant in a mock, none backed by anything entered. All of it
+/// was removed.
 ///
-/// WHAT IT DOES NOW. It asks for a birth date and shows the Thai lunar date it
-/// falls on: ขึ้น/แรม, ค่ำ, เดือนอ้าย … เดือนสิบสอง, and whether the year was
-/// อธิกมาส or อธิกวาร. That is a calendar conversion, not a prediction — it is
-/// as checkable as a currency conversion, and the arithmetic is held to
-/// published sources in test/thai_lunar_package_conformance_test.dart.
+/// WHAT CAME BACK, AND WHY THAT IS FINE. The removal took the LOOK down with
+/// the lies, and the look was good: a dark card with one large reverent line is
+/// the right shape for a screen about ดวง. The card is back. What fills it is
+/// now true — today's lunar date, written the way a ตำรา writes one, and a gold
+/// pill that says ข้อมูลเกิดครบแล้ว only when the birth date genuinely is on
+/// file. That sentence used to be false for everyone; now it is a fact about
+/// storage the user can verify by deleting it.
 ///
-/// WHAT IT STILL WILL NOT DO. There is no reading, because no ตำรา in the
-/// library keys on เดือนเกิด yet. The screen says so rather than filling the
-/// space, which was the entire point of removing the old one.
-///
-/// The date is asked for in พ.ศ. with Thai month names, not through the stock
-/// date picker: this audience knows its birth year as ๒๕๓๖, and a wheel
-/// offering 1993 is a small daily insult to people the app is supposed to be
-/// for.
+/// THE ONE LINE NOT RESTORED. "เดือนนี้: เริ่มสิ่งใหม่อย่างมีแผน" was invented
+/// advice with no ตำรา behind it. The slot survives, because a single personal
+/// line under the headline is exactly right — but it carries the user's ทักษา
+/// birth-day reading once that is published, and today's lunar standing
+/// (วันพระ, ปีอธิกมาส) until then. Same rhythm, nothing made up.
 class FortuneScreen extends ConsumerWidget {
   const FortuneScreen({super.key});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final textTheme = Theme.of(context).textTheme;
     final profile = ref.watch(birthProfileProvider);
+
+    final textTheme = Theme.of(context).textTheme;
 
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
@@ -45,20 +45,12 @@ class FortuneScreen extends ConsumerWidget {
         Text('ดวงของฉัน',
             style:
                 textTheme.headlineSmall!.copyWith(fontWeight: FontWeight.w800)),
-        const SizedBox(height: 4),
-        Text('บอกวันเดือนปีเกิด แล้วดูว่าตรงกับเดือนไทยเดือนไหน',
-            style: textTheme.bodySmall!.copyWith(color: NimitColors.inkSoft)),
-        const SizedBox(height: 16),
-        const _PrivacyCard(),
-        const SizedBox(height: 20),
+        const SizedBox(height: 14),
         profile.when(
           loading: () => const Padding(
-            padding: EdgeInsets.symmetric(vertical: 48),
+            padding: EdgeInsets.symmetric(vertical: 64),
             child: Center(child: CircularProgressIndicator()),
           ),
-          // Storage failed rather than being empty. Say so instead of showing
-          // an unset picker, which would look like the saved date had been
-          // silently thrown away.
           error: (e, _) => const SectionCard(
             child: DisclaimerText(
                 'ยังอ่านข้อมูลในเครื่องไม่ได้ ลองเปิดหน้านี้ใหม่อีกครั้ง'),
@@ -75,142 +67,221 @@ class _Body extends ConsumerWidget {
 
   final BirthProfile profile;
 
+  Future<void> _openPicker(BuildContext context, WidgetRef ref) async {
+    final picked = await showModalBottomSheet<DateTime>(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: NimitColors.cream,
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
+      ),
+      builder: (_) => _BirthDateSheet(initial: profile.date),
+    );
+    if (picked != null) {
+      await ref.read(birthProfileProvider.notifier).setDate(picked);
+    }
+  }
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final birth = profile.isComplete
+        ? _tryConvert(profile.date!)
+        : null;
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        if (profile.needsUpgrade) ...[
-          SectionCard(
-            color: NimitColors.pastelCream,
-            child: DisclaimerText(
-                'เดิมคุณบอกไว้แค่เดือน ${thaiMonths[profile.legacyMonth! - 1]} '
-                'ตอนนี้ขอวันและปีเกิดเพิ่ม เพราะเดือนไทยตามตำราคำนวณจากวันเดือนปีพร้อมกัน'),
-          ),
-          const SizedBox(height: 16),
-        ],
-        SectionHeader(
-          'วันเดือนปีเกิด',
-          caption: profile.isComplete ? 'แก้ไขได้ตลอด' : 'เลือกให้ครบทั้งสามช่อง',
+        _HeroCard(
+          birth: birth,
+          isSet: profile.isComplete,
+          onTap: () => _openPicker(context, ref),
         ),
-        const SizedBox(height: 12),
-        _BirthDatePicker(
-          initial: profile.date,
-          onPicked: (d) => ref.read(birthProfileProvider.notifier).setDate(d),
-        ),
-        const SizedBox(height: 20),
-        if (profile.isComplete) ...[
-          _LunarResult(date: profile.date!),
-          const SizedBox(height: 14),
-          Center(
-            child: TextButton.icon(
-              onPressed: () => ref.read(birthProfileProvider.notifier).clear(),
-              icon: const Icon(Icons.delete_outline, size: 20),
-              label: const Text('ลบวันเกิดออกจากเครื่อง'),
-              style: TextButton.styleFrom(
-                foregroundColor: NimitColors.inkSoft,
-                minimumSize: const Size(0, 48),
-              ),
+        const SizedBox(height: 18),
+
+        if (birth != null) ...[
+          _TaksaSection(weekday: birth.effectiveCivilDate.weekday),
+          const SizedBox(height: 18),
+          _BirthFacts(birth: birth),
+        ] else ...[
+          if (profile.needsUpgrade)
+            SectionCard(
+              color: NimitColors.pastelCream,
+              child: DisclaimerText(
+                  'เดิมคุณบอกไว้แค่เดือน ${thaiMonths[profile.legacyMonth! - 1]} '
+                  'ขอวันและปีเกิดเพิ่ม เพราะเดือนทางจันทรคติคำนวณจากวันเดือนปีพร้อมกัน'),
             ),
-          ),
-        ] else if (!profile.needsUpgrade)
-          const SectionCard(
-            color: NimitColors.pastelCream,
-            child: DisclaimerText(
-                'ยังไม่ได้บอกวันเกิด แอปใช้งานส่วนอื่นได้ตามปกติ '
-                'จะบอกหรือไม่บอกก็ได้'),
-          ),
+        ],
+
         const SizedBox(height: 22),
+        _PrivacyNote(canDelete: profile.isComplete),
+        const SizedBox(height: 8),
         const _SourceFooter(),
       ],
     );
   }
 }
 
-/// What is stored, stated before anything is asked for.
-class _PrivacyCard extends StatelessWidget {
-  const _PrivacyCard();
+/// Conversion can refuse (out of supported range). The screen must not render a
+/// guessed month, so a refusal simply yields no card content.
+ThaiLunarBirth? _tryConvert(DateTime date) {
+  try {
+    return const ThaiLunarBirthService().convert(date);
+  } on RangeError {
+    return null;
+  }
+}
+
+/// The card the screen is built around.
+///
+/// Tappable throughout: entering a birth date is the one action here, and a
+/// user who has not set one should not have to hunt for a control.
+class _HeroCard extends ConsumerWidget {
+  const _HeroCard({
+    required this.birth,
+    required this.isSet,
+    required this.onTap,
+  });
+
+  final ThaiLunarBirth? birth;
+  final bool isSet;
+  final VoidCallback onTap;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     final textTheme = Theme.of(context).textTheme;
 
-    return DarkCard(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Row(
+    // Today, not the birth date: the headline is the standing of the day the
+    // user is reading on, which is what a ตำรา-minded reader looks for first.
+    final today = DateTime.now();
+    final todayLunar = _tryConvert(DateTime(today.year, today.month, today.day));
+
+    final headline =
+        todayLunar?.lunarDateArchaicTh ?? 'วันนี้ทางจันทรคติ';
+
+    return Material(
+      color: NimitColors.aubergine,
+      borderRadius: BorderRadius.circular(22),
+      child: InkWell(
+        onTap: onTap,
+        borderRadius: BorderRadius.circular(22),
+        child: Padding(
+          padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const Icon(Icons.lock_outline, color: NimitColors.gold, size: 20),
-              const SizedBox(width: 8),
-              Text('เก็บไว้ในเครื่องนี้เท่านั้น',
-                  style: textTheme.titleSmall!.copyWith(
-                      color: NimitColors.onDark, fontWeight: FontWeight.w800)),
+              Text('วันนี้ทางจันทรคติ',
+                  style: textTheme.labelMedium!
+                      .copyWith(color: NimitColors.gold, letterSpacing: 0.6)),
+              const SizedBox(height: 8),
+              Text(headline,
+                  style: textTheme.headlineMedium!.copyWith(
+                    color: NimitColors.onDark,
+                    fontWeight: FontWeight.w800,
+                    height: 1.25,
+                  )),
+              const SizedBox(height: 10),
+              _HeroSubtitle(birth: birth, todayLunar: todayLunar),
+              const SizedBox(height: 16),
+              _HeroPill(isSet: isSet),
             ],
           ),
-          const SizedBox(height: 10),
-          // Names the field exactly. A date of birth is more identifying than
-          // a month, so the card has to say "วันเดือนปีเกิด" and not soften it.
-          const _PrivacyLine(yes: true, text: 'เก็บ: วันเดือนปีเกิด'),
-          const _PrivacyLine(
-              yes: false, text: 'ไม่เก็บ: เวลาเกิด สถานที่เกิด ชื่อ เลขบัตร'),
-          const _PrivacyLine(
-              yes: false, text: 'ไม่ส่งออกจากเครื่อง ไม่มีบัญชีผู้ใช้'),
-          const _PrivacyLine(yes: true, text: 'ลบได้ตลอดเวลา ลบแล้วหายทันที'),
-        ],
+        ),
       ),
     );
   }
 }
 
-class _PrivacyLine extends StatelessWidget {
-  const _PrivacyLine({required this.yes, required this.text});
+/// The single personal line under the headline.
+///
+/// Precedence: a published ทักษา reading for the user's birth weekday, else
+/// today's standing. Never a forecast — the slot that used to hold
+/// "เริ่มสิ่งใหม่อย่างมีแผน" now holds something that is either cited or
+/// checkable against a calendar.
+class _HeroSubtitle extends ConsumerWidget {
+  const _HeroSubtitle({required this.birth, required this.todayLunar});
 
-  final bool yes;
-  final String text;
+  final ThaiLunarBirth? birth;
+  final ThaiLunarBirth? todayLunar;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final textTheme = Theme.of(context).textTheme;
+
+    String line;
+    if (birth != null) {
+      final taksa = ref.watch(taksaProvider(birth!.effectiveCivilDate.weekday));
+      final reading = taksa.asData?.value;
+      line = (reading != null && reading.hasReading)
+          ? reading.readings.first.summaryTh
+          : _standingTh(birth!);
+    } else {
+      line = 'แตะเพื่อบอกวันเดือนปีเกิด แล้วดูว่าตรงกับวันทางจันทรคติวันใด';
+    }
+
+    return Text(line,
+        style: textTheme.bodyMedium!
+            .copyWith(color: NimitColors.onDarkSoft, height: 1.55));
+  }
+
+  /// What can be said truthfully before any ตำรา is published.
+  String _standingTh(ThaiLunarBirth birth) {
+    final today = DateTime.now();
+    if (isWanPhra(DateTime(today.year, today.month, today.day))) {
+      return 'วันนี้เป็นวันพระ · ท่านเกิด${birth.weekdayTh} ปี${birth.zodiacYearTh}';
+    }
+    return 'ท่านเกิด${birth.weekdayTh} ปี${birth.zodiacYearTh} '
+        '${birth.lunarDateArchaicTh}';
+  }
+}
+
+class _HeroPill extends StatelessWidget {
+  const _HeroPill({required this.isSet});
+
+  final bool isSet;
 
   @override
   Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: 6),
+    // "ข้อมูลเกิดครบแล้ว" is back, and this time it is true: it renders only
+    // when a date is actually stored, and the delete control below makes the
+    // claim falsifiable in one tap.
+    final label = isSet ? 'ข้อมูลเกิดครบแล้ว' : 'แตะเพื่อบอกวันเกิด';
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 9),
+      decoration: BoxDecoration(
+        color: NimitColors.gold,
+        borderRadius: BorderRadius.circular(999),
+      ),
       child: Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: [
-          // Icon as well as colour: the distinction has to survive a sun-washed
-          // screen and colour-blind eyes.
-          Icon(yes ? Icons.check : Icons.close,
-              size: 17, color: yes ? NimitColors.gold : NimitColors.onDarkSoft),
-          const SizedBox(width: 8),
-          Expanded(
-            child: Text(text,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodyMedium!
-                    .copyWith(color: NimitColors.onDark, height: 1.45)),
-          ),
+          Icon(isSet ? Icons.check_circle_outline : Icons.edit_calendar_outlined,
+              size: 17, color: NimitColors.aubergineDeep),
+          const SizedBox(width: 7),
+          Text(label,
+              style: Theme.of(context).textTheme.labelLarge!.copyWith(
+                  color: NimitColors.aubergineDeep,
+                  fontWeight: FontWeight.w800)),
         ],
       ),
     );
   }
 }
 
-/// วัน / เดือน / ปี พ.ศ. as three fields.
+/// วัน / เดือน / ปี พ.ศ. in a bottom sheet.
 ///
-/// Not the stock date picker, for two reasons: it offers Gregorian years to an
-/// audience that thinks in พ.ศ., and its wheel is a poor target for the older
-/// hands this app is built for. Three dropdowns are boring and legible, and
-/// nothing is saved until all three are set.
-class _BirthDatePicker extends StatefulWidget {
-  const _BirthDatePicker({required this.initial, required this.onPicked});
+/// A modal rather than three permanent dropdowns: the birth date is set once
+/// and then rarely touched, so leaving the form open forever gave the screen
+/// the character of a data-entry job rather than something you consult.
+class _BirthDateSheet extends StatefulWidget {
+  const _BirthDateSheet({required this.initial});
 
   final DateTime? initial;
-  final ValueChanged<DateTime> onPicked;
 
   @override
-  State<_BirthDatePicker> createState() => _BirthDatePickerState();
+  State<_BirthDateSheet> createState() => _BirthDateSheetState();
 }
 
-class _BirthDatePickerState extends State<_BirthDatePicker> {
+class _BirthDateSheetState extends State<_BirthDateSheet> {
   static const _minCe = 1900;
   static const _maxCe = 2050;
 
@@ -229,75 +300,116 @@ class _BirthDatePickerState extends State<_BirthDatePicker> {
     }
   }
 
-  /// Days in the currently chosen month, so 31 กุมภาพันธ์ cannot be picked.
   int get _daysInMonth {
     final m = _month, y = _yearBe;
     if (m == null || y == null) return 31;
     return DateTime(y - 543, m + 1, 0).day;
   }
 
-  void _emit() {
-    final d = _day, m = _month, y = _yearBe;
-    if (d == null || m == null || y == null) return;
-    // A day left over from a longer month is clamped rather than rejected —
-    // the user changed the month, they did not ask to lose their day.
-    final clamped = d > _daysInMonth ? _daysInMonth : d;
-    if (clamped != d) setState(() => _day = clamped);
-    widget.onPicked(DateTime(y - 543, m, clamped));
-  }
+  bool get _complete => _day != null && _month != null && _yearBe != null;
 
   @override
   Widget build(BuildContext context) {
-    return Row(
-      children: [
-        Expanded(
-          flex: 3,
-          child: _Field<int>(
-            label: 'วัน',
-            value: _day,
-            items: [
-              for (var i = 1; i <= _daysInMonth; i++)
-                DropdownMenuItem(value: i, child: Text('$i'))
-            ],
-            onChanged: (v) => setState(() {
-              _day = v;
-              _emit();
-            }),
+    final textTheme = Theme.of(context).textTheme;
+
+    return Padding(
+      padding: EdgeInsets.fromLTRB(
+          20, 18, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Center(
+            child: Container(
+              width: 40,
+              height: 4,
+              decoration: BoxDecoration(
+                color: NimitColors.border,
+                borderRadius: BorderRadius.circular(999),
+              ),
+            ),
           ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          flex: 5,
-          child: _Field<int>(
-            label: 'เดือน',
-            value: _month,
-            items: [
-              for (var i = 1; i <= 12; i++)
-                DropdownMenuItem(value: i, child: Text(thaiMonths[i - 1]))
+          const SizedBox(height: 16),
+          Text('วันเดือนปีเกิด',
+              style:
+                  textTheme.titleMedium!.copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          Text('ใช้คำนวณวันทางจันทรคติ เก็บไว้ในเครื่องนี้เท่านั้น',
+              style: textTheme.bodySmall!.copyWith(color: NimitColors.inkSoft)),
+          const SizedBox(height: 16),
+          Row(
+            children: [
+              Expanded(
+                flex: 3,
+                child: _Field<int>(
+                  label: 'วัน',
+                  value: _day,
+                  items: [
+                    for (var i = 1; i <= _daysInMonth; i++)
+                      DropdownMenuItem(value: i, child: Text('$i'))
+                  ],
+                  onChanged: (v) => setState(() => _day = v),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 5,
+                child: _Field<int>(
+                  label: 'เดือน',
+                  value: _month,
+                  items: [
+                    for (var i = 1; i <= 12; i++)
+                      DropdownMenuItem(value: i, child: Text(thaiMonths[i - 1]))
+                  ],
+                  onChanged: (v) => setState(() {
+                    _month = v;
+                    // A day left over from a longer month is clamped, not
+                    // rejected: the user changed the month, they did not ask
+                    // to lose their day.
+                    if (_day != null && _day! > _daysInMonth) {
+                      _day = _daysInMonth;
+                    }
+                  }),
+                ),
+              ),
+              const SizedBox(width: 8),
+              Expanded(
+                flex: 4,
+                child: _Field<int>(
+                  label: 'ปี พ.ศ.',
+                  value: _yearBe,
+                  items: [
+                    for (var y = _maxCe + 543; y >= _minCe + 543; y--)
+                      DropdownMenuItem(value: y, child: Text('$y'))
+                  ],
+                  onChanged: (v) => setState(() => _yearBe = v),
+                ),
+              ),
             ],
-            onChanged: (v) => setState(() {
-              _month = v;
-              _emit();
-            }),
           ),
-        ),
-        const SizedBox(width: 8),
-        Expanded(
-          flex: 4,
-          child: _Field<int>(
-            label: 'ปี พ.ศ.',
-            value: _yearBe,
-            items: [
-              for (var y = _maxCe + 543; y >= _minCe + 543; y--)
-                DropdownMenuItem(value: y, child: Text('$y'))
-            ],
-            onChanged: (v) => setState(() {
-              _yearBe = v;
-              _emit();
-            }),
+          const SizedBox(height: 20),
+          SizedBox(
+            width: double.infinity,
+            child: FilledButton(
+              // Disabled until all three are set: a partial date cannot be
+              // converted, and saving one would leave the screen in a state it
+              // has no honest rendering for.
+              onPressed: _complete
+                  ? () => Navigator.of(context)
+                      .pop(DateTime(_yearBe! - 543, _month!, _day!))
+                  : null,
+              style: FilledButton.styleFrom(
+                backgroundColor: NimitColors.aubergine,
+                foregroundColor: NimitColors.onDark,
+                minimumSize: const Size(0, 52),
+                shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(16)),
+              ),
+              child: const Text('บันทึก'),
+            ),
           ),
-        ),
-      ],
+        ],
+      ),
     );
   }
 }
@@ -349,88 +461,8 @@ class _Field<T> extends StatelessWidget {
   }
 }
 
-/// The converted lunar date. A fact, not a forecast.
-class _LunarResult extends StatelessWidget {
-  const _LunarResult({required this.date});
-
-  final DateTime date;
-
-  static const _service = ThaiLunarBirthService();
-
-  @override
-  Widget build(BuildContext context) {
-    final textTheme = Theme.of(context).textTheme;
-
-    final ThaiLunarBirth birth;
-    try {
-      birth = _service.convert(date);
-    } on RangeError {
-      // The picker cannot currently produce an out-of-range date, but the
-      // conversion refuses rather than guesses and the screen has to honour
-      // that instead of rendering a wrong month.
-      return const SectionCard(
-        child: DisclaimerText('ปีเกิดนี้อยู่นอกช่วงที่แอปคำนวณได้อย่างมั่นใจ'),
-      );
-    }
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        DarkCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('ตรงกับวันทางจันทรคติ',
-                  style: textTheme.labelMedium!
-                      .copyWith(color: NimitColors.gold)),
-              const SizedBox(height: 8),
-              // The headline, and only the headline. The year type lives in
-              // the fact list below with the other lookup keys — printing it
-              // in both places is the kind of duplication that drifts apart
-              // the first time one of them is edited.
-              Text(birth.lunarDateTh,
-                  style: textTheme.headlineSmall!.copyWith(
-                      color: NimitColors.onDark, fontWeight: FontWeight.w800)),
-            ],
-          ),
-        ),
-        const SizedBox(height: 12),
-        SectionCard(
-          color: NimitColors.pastelBlue,
-          child: Text(birth.intercalationNoteTh,
-              style: textTheme.bodyMedium!
-                  .copyWith(color: NimitColors.ink, height: 1.55)),
-        ),
-        const SizedBox(height: 18),
-
-        // The three keys a ตำรา reading is looked up by. All computed, none
-        // invented — วันเกิด is arithmetic, เดือน comes from the conversion
-        // above, and ปีนักษัตร carries its own reckoning note because the
-        // conventions genuinely disagree for early-year births.
-        const SectionHeader('สิ่งที่คำนวณได้จากวันเกิด',
-            caption: 'เป็นการเทียบปฏิทิน ไม่ใช่คำทำนาย'),
-        const SizedBox(height: 10),
-        _FactRow(label: 'วันเกิด', value: birth.weekdayTh),
-        _FactRow(label: 'เดือนทางจันทรคติ', value: birth.monthNameTh),
-        _FactRow(
-          label: 'ปีนักษัตร',
-          value: 'ปี${birth.zodiacYearTh}',
-          note: birth.zodiacIsBoundarySensitive ? birth.zodiacNoteTh : null,
-        ),
-        _FactRow(label: 'ชนิดของปี', value: birth.yearTypeTh),
-
-        const SizedBox(height: 18),
-        _TaksaSection(weekday: birth.effectiveCivilDate.weekday),
-      ],
-    );
-  }
-}
-
-/// The ทักษา reading for the user’s birth weekday, or an honest account of
-/// why there is none.
-///
-/// Only the weekday is sent. The birth date stays on the device, the same way
-/// a lottery ticket number never travels.
+/// The ทักษา reading for the user's birth weekday, or an honest account of why
+/// there is none. Only the weekday is sent; the birth date stays on the device.
 class _TaksaSection extends ConsumerWidget {
   const _TaksaSection({required this.weekday});
 
@@ -474,25 +506,16 @@ class _TaksaSection extends ConsumerWidget {
                                     fontWeight: FontWeight.w700, height: 1.5)),
                             const SizedBox(height: 10),
                             Text(r.bodyTh,
-                                style: textTheme.bodyMedium!
-                                    .copyWith(height: 1.6)),
+                                style:
+                                    textTheme.bodyMedium!.copyWith(height: 1.6)),
                             const SizedBox(height: 12),
-                            const Divider(
-                                color: NimitColors.border, height: 1),
+                            const Divider(color: NimitColors.border, height: 1),
                             const SizedBox(height: 10),
-                            // Every reading carries its source. The citation is
-                            // assembled in the model, so a reading cannot reach
-                            // the screen without one.
+                            // Assembled in the model, so a reading cannot reach
+                            // the screen without its source.
                             Text('ที่มา: ${r.sourceTh}',
                                 style: textTheme.bodySmall!.copyWith(
                                     color: NimitColors.inkSoft, height: 1.45)),
-                            if (r.contextNoteTh.isNotEmpty) ...[
-                              const SizedBox(height: 6),
-                              Text(r.contextNoteTh,
-                                  style: textTheme.bodySmall!.copyWith(
-                                      color: NimitColors.inkSoft,
-                                      height: 1.45)),
-                            ],
                           ],
                         ),
                       ),
@@ -504,14 +527,13 @@ class _TaksaSection extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('ยังไม่มีตำราในคลังที่ทำนายจากวันเดือนปีเกิด',
+                      Text('ยังไม่มีตำราในคลังที่ทำนายจากวันเกิด',
                           style: textTheme.titleSmall!
                               .copyWith(fontWeight: FontWeight.w700)),
                       const SizedBox(height: 8),
                       Text(
-                          'ข้างบนคือสิ่งที่คำนวณได้จริง ตรวจสอบกับปฏิทินได้ทุกบรรทัด '
-                          'ส่วนคำทำนายต้องมีตำราที่อ้างอิงได้ก่อน นิมิตจะไม่แต่งขึ้นเอง '
-                          'เมื่อได้ตำรามาแล้ว คำทำนายจะขึ้นตรงนี้พร้อมบอกว่ามาจากเล่มไหน หน้าไหน',
+                          'วันทางจันทรคติข้างบนคำนวณได้จริง ตรวจสอบกับปฏิทินได้ '
+                          'ส่วนคำทำนายต้องมีตำราที่อ้างอิงได้ก่อน นิมิตจะไม่แต่งขึ้นเอง',
                           style: textTheme.bodyMedium!.copyWith(height: 1.6)),
                     ],
                   ),
@@ -522,7 +544,45 @@ class _TaksaSection extends ConsumerWidget {
   }
 }
 
-/// One computed fact: label, value, and an optional caveat underneath.
+/// The computed keys, demoted below the reading — reference, not headline.
+class _BirthFacts extends StatelessWidget {
+  const _BirthFacts({required this.birth});
+
+  final ThaiLunarBirth birth;
+
+  @override
+  Widget build(BuildContext context) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader('คำนวณจากวันเกิดของท่าน',
+            caption: 'เป็นการเทียบปฏิทิน ไม่ใช่คำทำนาย'),
+        const SizedBox(height: 10),
+        _FactRow(label: 'วันเกิด', value: birth.weekdayTh),
+        _FactRow(label: 'วันทางจันทรคติ', value: birth.lunarDateArchaicTh),
+        _FactRow(
+          label: 'ปีนักษัตร',
+          value: 'ปี${birth.zodiacYearTh}',
+          note: birth.zodiacIsBoundarySensitive ? birth.zodiacNoteTh : null,
+        ),
+        _FactRow(label: 'ชนิดของปี', value: birth.yearTypeTh),
+        if (birth.isIntercalaryMonth ||
+            birth.monthOccurrence == ThaiLunarMonthOccurrence.firstEighth) ...[
+          const SizedBox(height: 2),
+          SectionCard(
+            color: NimitColors.pastelBlue,
+            child: Text(birth.intercalationNoteTh,
+                style: Theme.of(context)
+                    .textTheme
+                    .bodySmall!
+                    .copyWith(color: NimitColors.ink, height: 1.5)),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _FactRow extends StatelessWidget {
   const _FactRow({required this.label, required this.value, this.note});
 
@@ -570,6 +630,49 @@ class _FactRow extends StatelessWidget {
   }
 }
 
+/// One quiet line, not a wall of warnings.
+///
+/// The previous version was a four-line checklist in a dark card at the top of
+/// the screen, which made a page about ดวง open like a consent form. The facts
+/// have not changed — birth date only, on this device, deletable — but they
+/// belong in a footnote, next to the control that acts on them.
+class _PrivacyNote extends ConsumerWidget {
+  const _PrivacyNote({required this.canDelete});
+
+  final bool canDelete;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final textTheme = Theme.of(context).textTheme;
+
+    return Row(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const Icon(Icons.lock_outline, size: 15, color: NimitColors.inkSoft),
+        const SizedBox(width: 7),
+        Expanded(
+          child: Text(
+              'เก็บวันเดือนปีเกิดไว้ในเครื่องนี้เท่านั้น ไม่ส่งออกจากเครื่อง',
+              style: textTheme.bodySmall!
+                  .copyWith(color: NimitColors.inkSoft, height: 1.45)),
+        ),
+        if (canDelete) ...[
+          const SizedBox(width: 8),
+          TextButton(
+            onPressed: () => ref.read(birthProfileProvider.notifier).clear(),
+            style: TextButton.styleFrom(
+              padding: const EdgeInsets.symmetric(horizontal: 8),
+              minimumSize: const Size(0, 36),
+              foregroundColor: NimitColors.inkSoft,
+            ),
+            child: const Text('ลบ'),
+          ),
+        ],
+      ],
+    );
+  }
+}
+
 class _SourceFooter extends StatelessWidget {
   const _SourceFooter();
 
@@ -581,7 +684,6 @@ class _SourceFooter extends StatelessWidget {
         const DisclaimerText(
             'นิมิตเป็นแอปความเชื่อและวัฒนธรรม ไม่ใช่คำแนะนำทางการเงิน '
             'การลงทุน หรือทางการแพทย์'),
-        const SizedBox(height: 10),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton(
