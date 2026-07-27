@@ -119,6 +119,7 @@ jobs:
         run: |
           psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/dream_symbols_v5_krachamen_p24.sql
           psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/interpretations_v6_krachamen_p24.sql
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/interpretations_v7_khamthamnaifan.sql
 
       # Owned-library workflow: holdings, corrected classifications, template.
       - name: Apply owned-library sources and template
