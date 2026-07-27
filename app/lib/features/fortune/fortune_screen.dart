@@ -13,9 +13,18 @@ import '../../data/models/fortune.dart';
 import '../../data/providers.dart';
 import 'celestial_orb.dart';
 
-/// Diameter of the orbit motif on the hero card. Referenced by the layout so
-/// the text column and the graphic can never disagree about the space.
-const double _orbSize = 168;
+/// Diameter of the orbit motif, as a fraction of the card width.
+///
+/// RESPONSIVE, because a fixed size does not survive a 320 px phone. At that
+/// width a 168 px orb leaves under 110 px for the headline, and the first fix
+/// papered over it with a 150 px minimum — which simply forced the text back
+/// under the graphic. The overlap test caught that immediately. Scaling the
+/// motif instead keeps the same composition at every width.
+double _orbSizeFor(double cardWidth) => (cardWidth * 0.42).clamp(112.0, 168.0);
+
+/// How much of the orb runs past the right edge of the card. Named so the
+/// layout and the graphic cannot disagree about it.
+const double _orbBleed = 0.16;
 
 /// ดวงของฉัน.
 ///
@@ -162,8 +171,10 @@ class _HeroCard extends ConsumerWidget {
     final today = DateTime.now();
     final todayLunar = _tryConvert(DateTime(today.year, today.month, today.day));
 
-    final headline =
-        todayLunar?.lunarDateArchaicTh ?? 'วันนี้ทางจันทรคติ';
+    final phaseDay = todayLunar == null
+        ? ''
+        : '${todayLunar.phaseTh} ${thaiDigits(todayLunar.lunar.day)} ค่ำ';
+    final monthName = todayLunar?.monthNameTh ?? 'วันนี้';
 
     return Material(
       color: NimitColors.aubergine,
@@ -182,40 +193,71 @@ class _HeroCard extends ConsumerWidget {
             // colliding text, and "it looked fine on my device" is how that
             // happens: the orb occupies the right, so the words are told how
             // much room they actually have and wrap inside it.
-            final textWidth =
-                math.max(160.0, constraints.maxWidth - _orbSize * 0.82);
+            // Available text width, computed against what the orb ACTUALLY
+            // occupies. The first version subtracted the orb from maxWidth and
+            // forgot this padding, so the column ran ~25 px under the graphic —
+            // and the 320 px test passed anyway, because it only checked for
+            // overflow and overlapping text does not overflow. There is now a
+            // geometry test that compares the two rectangles directly.
+            const leftPad = 22.0;
+            const gap = 10.0;
+            final orbSize = _orbSizeFor(constraints.maxWidth);
+            final orbVisible = orbSize * (1 - _orbBleed);
+            final textWidth = math.max(
+                140.0, constraints.maxWidth - leftPad - orbVisible - gap);
 
             return Stack(
               children: [
                 Positioned(
-                  right: -_orbSize * 0.16,
-                  top: -_orbSize * 0.10,
-                  child: const CelestialOrb(size: _orbSize),
+                  right: -orbSize * _orbBleed,
+                  top: -orbSize * 0.12,
+                  child: CelestialOrb(size: orbSize),
                 ),
                 Padding(
-                  padding: const EdgeInsets.fromLTRB(22, 22, 22, 20),
-                  child: SizedBox(
-                    width: textWidth,
-                    child: Column(
-                      crossAxisAlignment: CrossAxisAlignment.start,
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        Text('วันนี้ทางจันทรคติ',
-                            style: textTheme.labelMedium!.copyWith(
-                                color: NimitColors.gold, letterSpacing: 0.6)),
-                        const SizedBox(height: 8),
-                        Text(headline,
-                            style: textTheme.headlineSmall!.copyWith(
-                              color: NimitColors.onDark,
-                              fontWeight: FontWeight.w800,
-                              height: 1.3,
-                            )),
-                        const SizedBox(height: 10),
-                        _HeroSubtitle(birth: birth, todayLunar: todayLunar),
-                        const SizedBox(height: 16),
-                        _HeroPill(isSet: isSet),
-                      ],
-                    ),
+                  padding: const EdgeInsets.fromLTRB(leftPad, 22, 22, 20),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      // Headline and eyebrow sit level with the orb, so they are
+                      // the parts that must stay narrow.
+                      SizedBox(
+                        width: textWidth,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text('วันนี้ทางจันทรคติ',
+                                style: textTheme.labelMedium!.copyWith(
+                                    color: NimitColors.gold,
+                                    letterSpacing: 0.6)),
+                            const SizedBox(height: 10),
+                            // Split deliberately rather than left to wrap. The
+                            // longest month name is เดือนแปดหลัง, which pushed
+                            // "หลัง" onto a line of its own and looked like a
+                            // mistake. Breaking after ค่ำ is also how a calendar
+                            // sets it, and it makes the MONTH the hero — which
+                            // is what the screen is about.
+                            Text(phaseDay,
+                                style: textTheme.titleMedium!.copyWith(
+                                    color: NimitColors.onDarkSoft,
+                                    fontWeight: FontWeight.w600)),
+                            const SizedBox(height: 2),
+                            Text(monthName,
+                                style: textTheme.headlineSmall!.copyWith(
+                                  color: NimitColors.onDark,
+                                  fontWeight: FontWeight.w800,
+                                  height: 1.2,
+                                )),
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 12),
+                      // Below the orb's mass, so these may use the full width.
+                      _HeroSubtitle(birth: birth, todayLunar: todayLunar),
+                      const SizedBox(height: 16),
+                      _HeroPill(isSet: isSet),
+                    ],
                   ),
                 ),
               ],

@@ -302,6 +302,44 @@ void main() {
     expect(find.textContaining('ยังโหลดคำทำนายไม่ได้'), findsNothing);
   });
 
+  // THE TEST THAT SHOULD HAVE EXISTED FIRST.
+  //
+  // The original width calculation forgot the card's left padding, so the
+  // text column ran about 25 px under the graphic on a real phone. The 320 px
+  // test passed anyway, because it only asserted "no overflow" — and text
+  // drawn on top of a picture does not overflow anything. This compares the
+  // painted rectangles instead, which is the property that was actually
+  // claimed.
+  //
+  // One test per width rather than a loop inside one: re-pumping the whole app
+  // several times in a single test body trips a Riverpod rebuild assertion,
+  // and a harness problem masquerading as a layout failure wastes the next
+  // person's afternoon.
+  for (final width in [320.0, 360.0, 390.0, 430.0]) {
+    testWidgets('hero text never overlaps the orb at ${width.toInt()} px',
+        (tester) async {
+      tester.view.physicalSize = Size(width, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      SharedPreferences.setMockInitialValues(
+          {'nimit.birth.v2': '{"date":"2026-07-29"}'});
+      await pumpApp(tester);
+      appRouter.go('/fortune');
+      await tester.pumpAndSettle();
+
+      final orb = tester.getRect(find.byType(CelestialOrb));
+      final rects = <String, Rect>{
+        'headline': tester.getRect(find.text('เดือนแปดหลัง').first),
+        'eyebrow': tester.getRect(find.text('วันนี้ทางจันทรคติ')),
+      };
+
+      for (final e in rects.entries) {
+        expect(e.value.overlaps(orb), isFalse,
+            reason: '${e.key} ${e.value} overlaps the orb $orb');
+      }
+    });
+  }
   testWidgets('the hero card does not overflow at 320 px, orb and all',
       (tester) async {
     // The orbit motif occupies the right of the card, so the text column is
