@@ -1,9 +1,16 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nimit/core/calendar/thai_lunar.dart';
 
-/// Every expectation here comes from J. C. Eade, "Rules for interpolation in
-/// the Thai calendar: Suriyayatra versus the Sasana", JSS 88.1 & 2 (2000).
-/// Nothing is derived from the implementation, so the tests can actually fail.
+/// Expectations come from two independent kinds of source, never from the
+/// implementation:
+///
+///  * J. C. Eade, "Rules for interpolation in the Thai calendar: Suriyayatra
+///    versus the Sasana", JSS 88.1 & 2 (2000) — astronomical, CS 1320–1340.
+///  * Published Thai Buddhist holiday records naming เดือนแปดหลัง —
+///    ecclesiastical, พ.ศ. 2561–2569.
+///
+/// Two witnesses of different kinds, 68 years apart, is what makes the phase of
+/// the 19-year cycle trustworthy rather than fitted to one table.
 void main() {
   group('suriyayatra New Year values', () {
     test("reproduce Eade's worked example for CS 1325 exactly", () {
@@ -30,10 +37,9 @@ void main() {
     });
   });
 
-  group('year classification against Eade table, CS 1320–1340', () {
-    // p. 197. "m" adhikamat, "d" adhikawan, "n" normal. This is the paper's
-    // own worked-out sequence for 1958–1978 and is the only published ground
-    // truth in the article.
+  group('year classification against Eade table, CS 1320-1340', () {
+    // p. 197. "m" adhikamat, "d" adhikawan, "n" normal — the paper's own
+    // worked-out sequence for 1958-1978.
     const expected = <int, ThaiYearType>{
       1320: ThaiYearType.adhikamat,
       1321: ThaiYearType.adhikawan,
@@ -58,71 +64,87 @@ void main() {
       1340: ThaiYearType.adhikawan,
     };
 
-    // KNOWN DIVERGENCE, asserted rather than hidden.
-    //
-    // The stages in yearValues reproduce Eade exactly (tests above). Deriving
-    // adhikamat PLACEMENT from masaken growth does not: it agrees on the count
-    // and rhythm but runs four of the eight a year early. Asserting the exact
-    // divergence locks the current behaviour, keeps CI honest and green, and
-    // makes any future change to the rule visible immediately — a skipped test
-    // would just let this rot.
-    test('masaken-growth placement diverges from Eade in a specific, fixed way',
-        () {
+    test('adhikamat years match', () {
       final ours = <int>[
         for (var cs = 1320; cs <= 1340; cs++)
-          if (ThaiLunarCalendar.suriyayatraYearType(cs) ==
-              ThaiYearType.adhikamat)
-            cs
+          if (ThaiLunarCalendar.isAdhikamat(cs)) cs
       ];
-      final eade = expected.entries
-          .where((e) => e.value == ThaiYearType.adhikamat)
-          .map((e) => e.key)
-          .toList()
-        ..sort();
+      expect(ours, [1320, 1323, 1326, 1328, 1331, 1334, 1337, 1339]);
+    });
 
-      expect(ours, [1320, 1322, 1325, 1328, 1331, 1333, 1336, 1339]);
-      expect(eade, [1320, 1323, 1326, 1328, 1331, 1334, 1337, 1339]);
-
-      // Same number of intercalary years — the drift is in placement only.
-      expect(ours.length, eade.length,
-          reason: 'a count mismatch would mean something worse than phase');
-
-      // Four agree, four are exactly one year early. Recorded so that a fix
-      // which improves this has to update the expectation deliberately.
-      expect(ours.toSet().intersection(eade.toSet()).toList()..sort(),
-          [1320, 1328, 1331, 1339]);
+    test('full m/d/n sequence matches', () {
+      final wrong = <String>[];
+      expected.forEach((cs, type) {
+        final got = ThaiLunarCalendar.yearType(cs);
+        if (got != type) wrong.add('CS $cs: want ${type.name}, got ${got.name}');
+      });
+      expect(wrong, isEmpty, reason: wrong.join('\n'));
     });
 
     test('no year is both adhikamat and adhikawan', () {
       // p. 196: "years with an extra month are not allowed also to have an
       // extra day". p. 199 notes the Burmese rule is the exact inverse, so this
-      // is a real Thai-specific constraint and not a tautology.
+      // is a real Thai-specific constraint, not a tautology.
       for (var cs = 1320; cs <= 1340; cs++) {
-        final t = ThaiLunarCalendar.suriyayatraYearType(cs);
-        if (t == ThaiYearType.adhikamat) {
-          expect(ThaiLunarCalendar.monthsInYear(cs), 13);
+        if (ThaiLunarCalendar.isAdhikamat(cs)) {
+          expect(ThaiLunarCalendar.yearType(cs), ThaiYearType.adhikamat);
         }
       }
     });
   });
 
-  group('structural invariants over a long run', () {
-    test('adhikamat occurs about 7 times in 19 years', () {
-      // The metonic ratio. Not from the paper, but any implementation that
-      // drifts far from it is broken in a way the 21-year table might miss.
-      var count = 0;
-      for (var cs = 1200; cs < 1200 + 190; cs++) {
-        if (ThaiLunarCalendar.suriyayatraYearType(cs) == ThaiYearType.adhikamat) count++;
+  group('cross-check against published Buddhist holiday records', () {
+    // วันอาสาฬหบูชา is ขึ้น ๑๕ ค่ำ เดือน ๘; in an adhikamat year it falls in
+    // เดือนแปดหลัง. Published holiday listings name the month, so they witness
+    // intercalation independently of any astronomical table.
+    test('the four recorded เดือนแปดหลัง years are adhikamat', () {
+      for (final be in [2561, 2564, 2566, 2569]) {
+        final cs = ThaiLunarCalendar.csFromBeAfterSongkran(be);
+        expect(ThaiLunarCalendar.isAdhikamat(cs), isTrue,
+            reason: 'BE $be = CS $cs, residue ${cs % 19}');
       }
-      expect(count, inInclusiveRange(65, 75),
-          reason: '190 years should hold roughly 70 adhikamat years, got $count');
     });
 
-    test('every year has 12 or 13 months, never anything else', () {
-      for (var cs = 1200; cs <= 1420; cs++) {
-        expect(ThaiLunarCalendar.monthsInYear(cs), anyOf(12, 13),
-            reason: 'CS $cs');
+    test('neighbouring years are NOT adhikamat', () {
+      // Without this, a rule that answered "yes" to everything would pass above.
+      for (final be in [2562, 2563, 2565, 2567, 2568]) {
+        final cs = ThaiLunarCalendar.csFromBeAfterSongkran(be);
+        expect(ThaiLunarCalendar.isAdhikamat(cs), isFalse, reason: 'BE $be');
       }
+    });
+
+    test('the BE-to-CS offset ties the two sources together', () {
+      // Eade's CS 1320 is 1958 AD, i.e. พ.ศ. 2501. If this offset drifts, the
+      // two witnesses stop corroborating each other and could silently agree
+      // on the wrong phase.
+      expect(ThaiLunarCalendar.csFromBeAfterSongkran(2501), 1320);
+      expect(ThaiLunarCalendar.csFromBeAfterSongkran(2569), 1388);
+    });
+  });
+
+  group('structural invariants', () {
+    test('exactly 7 adhikamat years in every 19-year window', () {
+      for (var start = 1300; start < 1400; start++) {
+        var n = 0;
+        for (var cs = start; cs < start + 19; cs++) {
+          if (ThaiLunarCalendar.isAdhikamat(cs)) n++;
+        }
+        expect(n, 7, reason: 'window starting CS $start');
+      }
+    });
+
+    test('gaps between adhikamat years are only 2 or 3, summing to 19', () {
+      // อติชาต เกตตะพันธุ์, "ปฏิทินสุวรรณภูมิ": สูตรหาปีอธิกมาส คือ 3332332.
+      final years = <int>[
+        for (var cs = 1320; cs <= 1320 + 19; cs++)
+          if (ThaiLunarCalendar.isAdhikamat(cs)) cs
+      ];
+      final gaps = <int>[
+        for (var i = 1; i < years.length; i++) years[i] - years[i - 1]
+      ];
+      expect(gaps.every((g) => g == 2 || g == 3), isTrue, reason: '$gaps');
+      expect(gaps.fold<int>(0, (a, b) => a + b), 19,
+          reason: 'one full cycle must span exactly 19 years');
     });
   });
 }

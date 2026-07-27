@@ -149,40 +149,80 @@ class ThaiLunarCalendar {
     );
   }
 
-  /// Months contained in a Chulasakarat year, from the growth of มาสเกณฑ์.
-  ///
-  /// masaken counts elapsed synodic months, so the months belonging to year Y
-  /// are masaken(Y+1) - masaken(Y): 13 means month 8 repeated.
-  static int monthsInYear(int csYear) =>
-      yearValues(csYear + 1).masaken - yearValues(csYear).masaken;
+  // A `monthsInYear` helper deriving the month count from masaken growth used
+  // to live here, and is deliberately gone rather than kept "for reference".
+  // It reproduced the right number of intercalary years and the right 3-3-2
+  // rhythm but the wrong phase — four of eight a year early against Eade's
+  // table. A plausible-looking function that answers a calendar question
+  // incorrectly is exactly the thing someone reaches for later; deleting it is
+  // safer than documenting it. Use [isAdhikamat].
 
-  /// Classify a year by the masaken-growth derivation.
+  /// Chulasakarat year for a Buddhist Era year.
   ///
-  /// UNVERIFIED, AND KNOWN TO DIVERGE. Do not build a user-facing month on
-  /// this yet.
+  /// CAUTION: the CS year turns at สงกรานต์, not on 1 January, so this is only
+  /// right for dates from about 16 April onward. Before that, subtract 1182.
+  /// The offset is exposed as a named helper rather than sprinkled inline
+  /// precisely so that the Songkran boundary has one place to be handled when
+  /// full date conversion lands.
+  static int csFromBeAfterSongkran(int beYear) => beYear - 1181;
+
+  /// Positions in the 19-year cycle that take a 13th month.
   ///
-  /// The stages this rests on ([yearValues]) reproduce Eade's printed example
-  /// exactly. This classifier does not: across his table for CS 1320–1340 it
-  /// agrees on the count of intercalary years (8 in 20) and on the 3-3-2
-  /// rhythm, but places four of the eight a year early —
+  /// The Metonic structure is stated by อติชาต เกตตะพันธุ์ (ภาควิชาคณิตศาสตร์
+  /// มหาวิทยาลัยเชียงใหม่), "ปฏิทินสุวรรณภูมิ": in 19 years, 7 have 13 months,
+  /// with the gap pattern **3332332**.
   ///
-  ///   Eade:   1320 1323 1326 1328 1331 1334 1337 1339
-  ///   here:   1320 1322 1325 1328 1331 1333 1336 1339
+  /// These residues are the PHASE of that pattern against `csYear % 19`,
+  /// recovered from Eade's worked table rather than assumed — his eight
+  /// adhikamat years for CS 1320–1340 land on exactly these residues.
   ///
-  /// The offset is not constant, so it is not an indexing slip; deriving
-  /// adhikamat from masaken growth is simply not the rule the Thai calendar
-  /// follows. Eade's own position (pp. 197–199) is that the ecclesiastical rule
-  /// is "inoperable, false" and that even the suriyayatra rule carries "no
-  /// guarantee" of being obeyed, so the placement most likely has to come from
-  /// published calendar data rather than from arithmetic at all.
+  /// Independently confirmed against published Thai Buddhist holiday records:
+  /// วันอาสาฬหบูชา falls in **เดือนแปดหลัง** in พ.ศ. 2561, 2564, 2566 and 2569,
+  /// which are CS 1380, 1383, 1385, 1388 → residues 12, 15, 17, 1. Two
+  /// unrelated kinds of source, 68 years apart, agreeing on the same phase.
+  static const _adhikamatResidues = {1, 4, 7, 9, 12, 15, 17};
+
+  /// อธิกมาส — does this Chulasakarat year repeat month 8?
+  static bool isAdhikamat(int csYear) =>
+      _adhikamatResidues.contains(csYear % 19);
+
+  /// Classify a year.
   ///
-  /// Tuning the constants until these 21 years agreed would be fitting to 21
-  /// data points, and would put a wrong birth month in front of a user with no
-  /// symptom. So this stays labelled instead.
-  static ThaiYearType suriyayatraYearType(int csYear) {
-    if (monthsInYear(csYear) == 13) return ThaiYearType.adhikamat;
-    return yearValues(csYear).wantsExtraDay
-        ? ThaiYearType.adhikawan
-        : ThaiYearType.normal;
+  /// Two different rules, deliberately from two different places:
+  ///
+  ///  * the extra MONTH comes from the 19-year cycle above, because deriving it
+  ///    from masaken growth demonstrably does not reproduce Eade's table — it
+  ///    gets the count and rhythm right but the phase wrong, which is worse
+  ///    than being obviously broken;
+  ///  * the extra DAY comes from the suriyayatra avoman thresholds, which Eade
+  ///    states outright (p. 196) and which rest on values this file verifies
+  ///    against his printed example.
+  ///
+  /// The Thai subsidiary rule is applied here and only here — Eade p. 196:
+  /// "years with an extra month are not allowed also to have an extra day."
+  /// (The Burmese rule is the exact inverse, which is why the two calendars
+  /// dislocate; see p. 199.)
+  ///
+  /// Crucially the barred day is not discarded, it is DEFERRED. Eade, same
+  /// page, on the one year this changes in his table:
+  ///
+  ///   "at the start of CS 1320 the kammacubala was 787 (normal; solar) and
+  ///    the avoman was 43; but the tithi was 28, theoretically making the year
+  ///    adhikamat. Consequently the adhikawan passed to CS 1321, even though
+  ///    the avoman was 598 in that year."
+  ///
+  /// So CS 1321 is adhikawan despite an avoman of 598, which is nowhere near
+  /// qualifying on its own. Without the deferral this classifier is right for
+  /// 20 of his 21 years — close enough to look correct and still be wrong.
+  static ThaiYearType yearType(int csYear) {
+    if (isAdhikamat(csYear)) return ThaiYearType.adhikamat;
+    if (yearValues(csYear).wantsExtraDay) return ThaiYearType.adhikawan;
+
+    // Inherit a day that the previous year was owed but barred from taking.
+    final previous = csYear - 1;
+    if (isAdhikamat(previous) && yearValues(previous).wantsExtraDay) {
+      return ThaiYearType.adhikawan;
+    }
+    return ThaiYearType.normal;
   }
 }
