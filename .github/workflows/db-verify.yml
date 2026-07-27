@@ -133,6 +133,9 @@ jobs:
         run: |
           psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/dream_symbols_v6_animals.sql
           psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/interpretations_v8_retire_placeholders.sql
+          # Exercised even though CI has no number payload (those live outside
+          # the repo): it must stay runnable and idempotent on an empty set.
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/publish_v2_numbers.sql
 
       - name: Assertion suite (published state)
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/rights_firewall_test.sql

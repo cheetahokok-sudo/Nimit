@@ -20,9 +20,13 @@ begin;
 
 delete from editorial.review_finding where found_by = 'auto' and not resolved;
 
--- ── blocker: a published claim resting on ONE copyrighted book ─────────────
--- The two-source rule is what turns a publisher's expression into a cultural
--- fact. PD sources are exempt: nobody owns the expression there.
+-- ── blocker: a published INTERPRETATION resting on ONE copyrighted book ────
+-- Still a blocker, and note the scope: INTERPRETATIONS only. A reading is a
+-- publisher's expression, so repeating one book's prose is a copyright
+-- question and the two-source rule is what turns it into a cultural fact.
+-- NUMBERS are different — "this ตำรา assigns 11 to ช้าง" is a fact about the
+-- book, outside copyright, and is handled below as a note plus a conflict
+-- check rather than a gate.
 insert into editorial.review_finding
   (interpretation_id, check_code, severity, message_th, detail)
 select i.id, 'single_source_copyrighted', 'blocker',
@@ -113,11 +117,56 @@ where s.status = 'published'
   and not exists (select 1 from content.interpretation i
                    where i.symbol_id = s.id and i.status = 'published');
 
--- ── note: draft numbers waiting on a second source ─────────────────────────
+-- ── warning: THE CONFLICT CHECK ────────────────────────────────────────────
+-- The one the editor actually wants. When two different editions assign
+-- DIFFERENT numbers to the same symbol in the same tradition, that is a real
+-- disagreement between ตำรา — surface it and let a human judge which to keep,
+-- or whether both are worth carrying. Silence here would let the app show a
+-- user two contradictory answers with equal confidence.
+--
+-- Warning, not blocker: ตำรา disagreeing is normal and often interesting. It
+-- needs a decision, not a block.
 insert into editorial.review_finding
   (check_code, severity, message_th, detail)
-select 'number_awaiting_corroboration', 'note',
-  'เลขฉบับร่างรอสอบทานกับแหล่งที่สองก่อนเผยแพร่',
+select 'number_conflict_between_sources', 'warning',
+  'ตำราต่างเล่มให้เลขไม่ตรงกันสำหรับสัญลักษณ์เดียวกัน — ต้องตัดสินว่าจะเก็บชุดไหน',
+  jsonb_build_object('symbol', s.name_th,
+                     'sources', src.sources, 'numbers', src.numbers)
+from content.symbol s
+join lateral (
+  select jsonb_agg(distinct e.label_th) as sources,
+         jsonb_agg(distinct n.number)   as numbers,
+         count(distinct e.id)            as n_editions
+    from content.number_association n
+    left join content.passage p on p.id = n.passage_id
+    left join content.edition e on e.id = p.edition_id
+   where n.symbol_id = s.id and n.status = 'published'
+) src on true
+where src.n_editions > 1;
+
+-- ── note: numbers resting on a single source ───────────────────────────────
+-- Downgraded from a publication gate on purpose. A number is a FACT about what
+-- a book says, not the book's expression, so one source is lawful to publish.
+-- It is still worth knowing which readings nobody has cross-checked.
+insert into editorial.review_finding
+  (check_code, severity, message_th, detail)
+select 'number_single_source', 'note',
+  'เลขชุดนี้มาจากตำราเล่มเดียว ยังไม่มีเล่มที่สองยืนยัน',
+  jsonb_build_object('symbol', s.name_th, 'source', max(e.label_th),
+                     'numbers', jsonb_agg(distinct n.number))
+from content.number_association n
+join content.symbol s on s.id = n.symbol_id
+left join content.passage p on p.id = n.passage_id
+left join content.edition e on e.id = p.edition_id
+where n.status = 'published'
+group by s.id, s.name_th
+having count(distinct e.id) <= 1;
+
+-- ── note: draft numbers still waiting ──────────────────────────────────────
+insert into editorial.review_finding
+  (check_code, severity, message_th, detail)
+select 'number_still_draft', 'note',
+  'เลขฉบับร่าง ยังไม่ได้เผยแพร่',
   jsonb_build_object('symbol', s.name_th, 'number', n.number)
 from content.number_association n
 join content.symbol s on s.id = n.symbol_id
