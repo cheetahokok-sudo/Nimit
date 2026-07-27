@@ -129,3 +129,30 @@ jobs:
 
       - name: Assertion suite (published state)
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/rights_firewall_test.sql
+
+      # The editorial sweep on a fully-populated library. It writes advisory
+      # findings only and changes no status — but a BLOCKER means content that
+      # is already published breaks a rule the project committed to, which is
+      # exactly the thing that must never reach users quietly.
+      - name: Editorial review sweep (no blockers permitted)
+        run: |
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f scripts/review-checks.sql
+          psql "$PGURL" -v ON_ERROR_STOP=1 -t -c "
+            do \$\$
+            declare n int;
+            begin
+              select count(*) into n from editorial.review_finding
+               where severity = 'blocker' and not resolved;
+              if n > 0 then
+                raise exception '% blocking review finding(s) — see editorial.review_finding', n;
+              end if;
+            end \$\$;"
+
+      # Proves the desk regenerates from a real database, so it can never drift
+      # into a hand-maintained page showing numbers nobody can reproduce.
+      - name: Review desk regenerates
+        run: |
+          psql "$PGURL" -t -A -f scripts/review-dump.sql > /tmp/review.json
+          node scripts/build-review-desk.mjs /tmp/review.json > /tmp/desk.html
+          test -s /tmp/desk.html
+          grep -q 'โต๊ะตรวจทาน' /tmp/desk.html
