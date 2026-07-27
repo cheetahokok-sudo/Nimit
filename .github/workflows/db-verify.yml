@@ -127,6 +127,13 @@ jobs:
           psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/sources_v7_owned_library.sql
           psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/interpretations_v5_owned_books_template.sql
 
+      # Animal lexicon the owned-book numbers attach to, plus retirement of the
+      # placeholder rows that book has now superseded.
+      - name: Apply animal lexicon and retire placeholders
+        run: |
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/dream_symbols_v6_animals.sql
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/interpretations_v8_retire_placeholders.sql
+
       - name: Assertion suite (published state)
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/rights_firewall_test.sql
 

@@ -179,7 +179,14 @@ out.push(`    || case when e.gist <> '' then ' — ' || e.gist else '' end`);
 out.push(`    || ' | รอสอบทานกับแหล่งที่สองก่อนเผยแพร่',`);
 out.push(`  'draft'`);
 out.push(`from entries e`);
-out.push(`join content.symbol_term t on t.term = e.word`);
+// PRIMARY TERMS ONLY, and this is a correctness rule rather than a nicety.
+// symbol_term also holds narrower terms: 'นกยูง' is a compound under นก,
+// 'ปลาฉลาม' and 'ปลาวาฬ' are both compounds under ปลา. Matching on any term
+// would have attached the peacock's numbers to every bird, and would have given
+// the generic ปลา FOUR numbers belonging to two different animals. A word whose
+// only match is a compound is reported as missing instead, so it gets its own
+// symbol — which is the correct fix and improves the lexicon besides.
+out.push(`join content.symbol_term t on t.term = e.word and t.kind = 'primary'`);
 out.push(`join content.symbol s on s.id = t.symbol_id`);
 out.push(`join ed on true`);
 out.push(`join content.passage p on p.edition_id = ed.id and p.locator = 'หน้า ' || e.page`);
@@ -195,7 +202,8 @@ out.push(words.map((w) => `  (${q(w)})`).join(',\n'));
 out.push(`)`);
 out.push(`select e.word as "ยังไม่มีในคลัง — ต้องเพิ่มสัญลักษณ์ก่อน"`);
 out.push(`from entries e`);
-out.push(`where not exists (select 1 from content.symbol_term t where t.term = e.word)`);
+out.push(`where not exists (select 1 from content.symbol_term t`);
+out.push(`                   where t.term = e.word and t.kind = 'primary')`);
 out.push(`order by 1;`);
 out.push('');
 out.push(`select`);

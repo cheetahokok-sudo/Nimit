@@ -39,3 +39,6 @@ content-payloads/
 # extracted is close to copying the publisher's table. Script public, corpus not.
 supabase/seeds/incoming/*.tsv
 !supabase/seeds/incoming/TEMPLATE.tsv
+
+# Generated number SQL from owned books: same reasoning as the .tsv payloads.
+supabase/seeds/incoming/*.sql
