@@ -445,34 +445,27 @@ class _ResultBanner extends StatelessWidget {
                   .copyWith(color: NimitColors.onDarkSoft)),
           const SizedBox(height: 2),
           BigNumber(first?.numbers.firstOrNull ?? '——————'),
-          const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(
-                child: PrizeBlock(
-                  labelTh: 'เลขท้าย 2 ตัว',
-                  numbers: last2?.numbers ?? const [],
-                  onDark: true,
-                ),
-              ),
-              Expanded(
-                child: PrizeBlock(
-                  labelTh: 'เลขหน้า 3 ตัว',
-                  numbers: front3?.numbers ?? const [],
-                  onDark: true,
-                ),
-              ),
-              Expanded(
-                child: PrizeBlock(
-                  labelTh: 'เลขท้าย 3 ตัว',
-                  numbers: last3?.numbers ?? const [],
-                  onDark: true,
-                ),
-              ),
-            ],
-          ),
           const SizedBox(height: 14),
+          const Divider(
+              height: 1, thickness: 1, color: Color(0x22F8F2E7)),
+          const SizedBox(height: 6),
+          PrizeRow(
+            labelTh: 'เลขท้าย 2 ตัว',
+            numbers: last2?.numbers ?? const [],
+            onDark: true,
+            emphasis: true,
+          ),
+          PrizeRow(
+            labelTh: 'เลขหน้า 3 ตัว',
+            numbers: front3?.numbers ?? const [],
+            onDark: true,
+          ),
+          PrizeRow(
+            labelTh: 'เลขท้าย 3 ตัว',
+            numbers: last3?.numbers ?? const [],
+            onDark: true,
+          ),
+          const SizedBox(height: 10),
           // Attribution renders from the source row the data hangs off, so the
           // credit shown can never drift from the source actually used.
           DisclaimerText('ที่มา: ${draw.sourceCustodianTh}',

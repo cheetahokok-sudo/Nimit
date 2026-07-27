@@ -113,41 +113,71 @@ class BigNumber extends StatelessWidget {
   }
 }
 
-/// A labelled block of prize numbers, used for the secondary tiers.
-class PrizeBlock extends StatelessWidget {
-  const PrizeBlock({
+/// One secondary prize tier: label on the left, numbers on the right.
+///
+/// A ROW, not a column in a three-across grid, and the reason is a real bug:
+/// side-by-side columns gave each tier about a third of the width, so on a
+/// 400px phone "เลขหน้า 3 ตัว 683 709" and "เลขท้าย 3 ตัว 427 746" ran into
+/// each other and rendered as "709427". Two numbers that belong to different
+/// prizes reading as one number is the worst possible failure on this screen.
+///
+/// Rows also read better for the audience: the eye goes down a list of labels
+/// rather than across three cramped headings, and each number gets the full
+/// remaining width no matter how many the tier holds.
+class PrizeRow extends StatelessWidget {
+  const PrizeRow({
     super.key,
     required this.labelTh,
     required this.numbers,
     this.onDark = false,
+    this.emphasis = false,
   });
 
   final String labelTh;
   final List<String> numbers;
   final bool onDark;
 
+  /// เลขท้าย 2 ตัว is the number this audience plays most, so it is set larger
+  /// than its siblings rather than being one of three equals.
+  final bool emphasis;
+
   @override
   Widget build(BuildContext context) {
     final labelColor = onDark ? NimitColors.onDarkSoft : NimitColors.inkSoft;
     final valueColor = onDark ? NimitColors.onDark : NimitColors.ink;
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(labelTh,
-            style: TextStyle(
-                fontSize: 13, color: labelColor, fontWeight: FontWeight.w600)),
-        const SizedBox(height: 4),
-        Text(
-          numbers.isEmpty ? '—' : numbers.join('  '),
-          style: TextStyle(
-            fontSize: 22,
-            fontWeight: FontWeight.w800,
-            letterSpacing: 2,
-            color: valueColor,
-            fontFeatures: const [FontFeature.tabularFigures()],
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 7),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 104,
+            child: Text(labelTh,
+                style: TextStyle(
+                    fontSize: 13,
+                    height: 1.25,
+                    color: labelColor,
+                    fontWeight: FontWeight.w600)),
           ),
-        ),
-      ],
+          const SizedBox(width: 8),
+          Expanded(
+            child: Text(
+              // Wide gap between numbers: at a glance "683 709" must never be
+              // mistaken for one six-digit number.
+              numbers.isEmpty ? '—' : numbers.join('     '),
+              style: TextStyle(
+                fontSize: emphasis ? 30 : 24,
+                fontWeight: FontWeight.w800,
+                letterSpacing: 2.5,
+                height: 1.1,
+                color: emphasis ? NimitColors.gold : valueColor,
+                fontFeatures: const [FontFeature.tabularFigures()],
+              ),
+            ),
+          ),
+        ],
+      ),
     );
   }
 }

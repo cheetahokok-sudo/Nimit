@@ -8,6 +8,7 @@ import 'package:nimit/core/router/app_router.dart';
 import 'package:nimit/data/models/lottery.dart';
 import 'package:nimit/data/providers.dart';
 import 'package:nimit/data/repositories/repositories.dart';
+import 'package:nimit/features/lottery/lottery_widgets.dart';
 import 'package:nimit/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -198,6 +199,41 @@ void main() {
       expect(find.textContaining('ไม่ถูกรางวัล'), findsNothing);
     });
 
+    testWidgets('prize tiers do not collide on a narrow phone', (tester) async {
+      // Regression: the three secondary tiers were laid out as equal columns
+      // in one Row, so at 400px each got ~110px and "เลขหน้า 683 709" ran into
+      // "เลขท้าย 427 746", rendering as "709427". Two numbers from different
+      // prizes reading as one number is the worst failure this screen has.
+      tester.view.physicalSize = const Size(400, 900);
+      tester.view.devicePixelRatio = 1.0;
+      addTearDown(tester.view.reset);
+
+      await pumpApp(tester, lottery: _FixtureLotteryRepository.announced());
+      await tester.tap(find.text('ตรวจหวย'));
+      await tester.pumpAndSettle();
+
+      // No RenderFlex overflow anywhere on the screen.
+      expect(tester.takeException(), isNull);
+
+      // Each tier is its own labelled row, and the labels are all present.
+      for (final label in ['เลขท้าย 2 ตัว', 'เลขหน้า 3 ตัว', 'เลขท้าย 3 ตัว']) {
+        expect(find.text(label), findsOneWidget, reason: 'missing $label');
+      }
+
+      // The structural guard, and the one that actually holds. The old bug was
+      // VISUAL — three Expanded columns each ~110px wide, so the numbers were
+      // always separate Text widgets but rendered flush against each other.
+      // Asserting on the text alone would pass for both layouts; asserting the
+      // layout is three PrizeRows is what stops the columns coming back.
+      expect(find.byType(PrizeRow), findsNWidgets(3),
+          reason: 'secondary tiers must be labelled rows, not squeezed columns');
+
+      // And each tier keeps its own numbers, with a wide separator.
+      final rows = tester.widgetList<PrizeRow>(find.byType(PrizeRow)).toList();
+      expect(rows.map((r) => r.numbers.join(',')),
+          containsAll(['71', '683,709', '427,746']));
+    });
+
     testWidgets('a PARTIAL draw never renders ไม่ถูกรางวัล', (tester) async {
       tester.view.physicalSize = const Size(420, 1400);
       tester.view.devicePixelRatio = 1.0;
@@ -276,6 +312,28 @@ class _FixtureLotteryRepository implements LotteryRepository {
             matchKind: MatchKind.exact6,
             sort: 10,
             numbers: ['639214'],
+          ),
+          // The real งวด 16 ก.ค. 2569 values — these are the exact numbers that
+          // collided as "709427" in the three-column layout.
+          const PrizeTierResult(
+            code: 'front3',
+            nameTh: 'รางวัลเลขหน้า 3 ตัว',
+            shortNameTh: 'หน้า 3 ตัว',
+            amountThb: 4000,
+            winnerCount: 2,
+            matchKind: MatchKind.prefix3,
+            sort: 70,
+            numbers: ['683', '709'],
+          ),
+          const PrizeTierResult(
+            code: 'last3',
+            nameTh: 'รางวัลเลขท้าย 3 ตัว',
+            shortNameTh: 'ท้าย 3 ตัว',
+            amountThb: 4000,
+            winnerCount: 2,
+            matchKind: MatchKind.suffix3,
+            sort: 80,
+            numbers: ['427', '746'],
           ),
           const PrizeTierResult(
             code: 'last2',
