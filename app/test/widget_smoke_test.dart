@@ -125,7 +125,7 @@ void main() {
     await pumpApp(tester);
 
     await tester.enterText(
-        find.byType(TextField).first, 'ฝันเห็นงูตัวใหญ่ในบ้าน');
+        find.byType(TextField).first, 'ฝันเห็นนกสีขาวหน้าบ้าน');
     await tester.tap(find.text('เริ่มวิเคราะห์'));
     await tester.pumpAndSettle();
 

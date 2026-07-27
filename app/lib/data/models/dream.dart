@@ -115,7 +115,7 @@ class DreamAnalysis {
     required this.sourceCount,
   });
 
-  final String headlineTh; // e.g. "งูสีขาว • หน้าบ้าน • ฝนเบา"
+  final String headlineTh; // e.g. "นกสีขาว • หน้าบ้าน • ฝนเบา"
   final String themeTh; // e.g. "การเปลี่ยนแปลงที่เข้ามาอย่างสงบ"
   final List<DreamSymbol> symbols;
   final List<SymbolInterpretation> interpretations;

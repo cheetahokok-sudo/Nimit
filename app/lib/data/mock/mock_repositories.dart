@@ -7,7 +7,7 @@ import '../models/trends.dart';
 import '../repositories/repositories.dart';
 
 /// Seeded with the exact content of the v2 UI board so the scaffold demos
-/// the real product story (white-snake dream) end to end.
+/// the real product story (white-bird dream) end to end.
 
 const _latency = Duration(milliseconds: 450);
 
@@ -66,7 +66,7 @@ class MockTrendsRepository implements TrendsRepository {
     await Future<void>.delayed(_latency);
     return const TrendsData(
       hotSymbol: TrendingSymbol(
-        nameTh: 'งูขาว',
+        nameTh: 'นกขาว',
         changePercent: 38,
         noteTh: 'ข้อมูลจากโพสต์สาธารณะและการค้นหาในแอป',
       ),

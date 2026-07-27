@@ -33,17 +33,17 @@ void main() {
 
   group('DreamAnalysis serialization', () {
     final analysis = DreamAnalysis(
-      headlineTh: 'งูสีขาว • หน้าบ้าน • ฝนเบา',
+      headlineTh: 'นกสีขาว • หน้าบ้าน • ฝนเบา',
       themeTh: 'การเปลี่ยนแปลงที่เข้ามาอย่างสงบ',
       symbols: const [
-        DreamSymbol(nameTh: 'งู', count: 6, slug: 'snake'),
+        DreamSymbol(nameTh: 'นก', count: 6, slug: 'bird'),
         DreamSymbol(nameTh: 'บ้าน', count: 9),
       ],
       interpretations: const [
         SymbolInterpretation(
           tier: SourceTier.a1,
           sourceNameTh: 'ตำราโบราณที่ตรวจสอบได้',
-          textTh: 'การพบงูใกล้บ้านมักถูกตีความว่ามีเรื่องใหม่เข้ามา',
+          textTh: 'การพบนกใกล้บ้านมักถูกตีความว่ามีข่าวสารเข้ามา',
           locatorTh: 'ผูกที่ ๓ หน้า ๑๒',
         ),
       ],
@@ -59,8 +59,8 @@ void main() {
       expect(decoded.themeTh, analysis.themeTh);
       expect(decoded.numbers, ['16', '61']);
       expect(decoded.sourceCount, 3);
-      expect(decoded.symbols.map((s) => s.nameTh), ['งู', 'บ้าน']);
-      expect(decoded.symbols.first.slug, 'snake');
+      expect(decoded.symbols.map((s) => s.nameTh), ['นก', 'บ้าน']);
+      expect(decoded.symbols.first.slug, 'bird');
       expect(decoded.symbols.last.slug, isNull);
       expect(decoded.interpretations.single.tier, SourceTier.a1);
       expect(decoded.interpretations.single.locatorTh, 'ผูกที่ ๓ หน้า ๑๒');
@@ -84,14 +84,14 @@ void main() {
     // Payloads already on user devices under `nimit.journal.v1` predate the
     // analysis field; they must keep parsing after the schema grew.
     test('parses a v1 payload written before analysis existed', () {
-      const legacy = '{"id":"1","text":"ฝันเห็นงู",'
+      const legacy = '{"id":"1","text":"ฝันเห็นนก",'
           '"createdAt":"2026-07-24T10:00:00.000","feelingTh":"สงบ",'
           '"timeOfNightTh":null,"headlineTh":null,"numbers":["16"]}';
 
       final entry = DreamEntry.fromJson(jsonDecode(legacy));
 
       expect(entry.id, '1');
-      expect(entry.text, 'ฝันเห็นงู');
+      expect(entry.text, 'ฝันเห็นนก');
       expect(entry.feelingTh, 'สงบ');
       expect(entry.numbers, ['16']);
       expect(entry.analysis, isNull);
@@ -109,13 +109,13 @@ void main() {
     test('round-trips an entry carrying an analysis snapshot', () {
       final entry = DreamEntry(
         id: '3',
-        text: 'ฝันเห็นงูสีขาว',
+        text: 'ฝันเห็นนกสีขาว',
         createdAt: DateTime(2026, 7, 26, 8, 30),
         numbers: const ['16'],
         analysis: const DreamAnalysis(
-          headlineTh: 'งูสีขาว',
+          headlineTh: 'นกสีขาว',
           themeTh: 'การเปลี่ยนแปลง',
-          symbols: [DreamSymbol(nameTh: 'งู', count: 6)],
+          symbols: [DreamSymbol(nameTh: 'นก', count: 6)],
           interpretations: [],
           numbers: ['16'],
           sourceCount: 1,
@@ -127,7 +127,7 @@ void main() {
 
       expect(decoded.createdAt, entry.createdAt);
       expect(decoded.analysis, isNotNull);
-      expect(decoded.analysis!.headlineTh, 'งูสีขาว');
+      expect(decoded.analysis!.headlineTh, 'นกสีขาว');
       expect(decoded.analysis!.symbols.single.count, 6);
     });
   });

@@ -182,7 +182,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 spacing: 8,
                 runSpacing: 8,
                 children: const [
-                  _TrendChip('งูขาว', NimitColors.pastelGreen),
+                  _TrendChip('นกขาว', NimitColors.pastelGreen),
                   _TrendChip('พระ', NimitColors.pastelCream),
                   _TrendChip('น้ำท่วม', NimitColors.pastelBlue),
                   _TrendChip('เด็ก', NimitColors.pastelLavender),

@@ -13,9 +13,9 @@ void main() {
 
     final older = DreamEntry(
       id: '1',
-      text: 'ฝันเห็นงูสีขาวหน้าบ้าน',
+      text: 'ฝันเห็นนกสีขาวหน้าบ้าน',
       createdAt: DateTime(2026, 7, 24),
-      headlineTh: 'งูสีขาว • หน้าบ้าน',
+      headlineTh: 'นกสีขาว • หน้าบ้าน',
       numbers: const ['16', '61'],
     );
     final newer = DreamEntry(
@@ -32,7 +32,7 @@ void main() {
     expect(all.length, 2);
     expect(all.first.id, '2');
     expect(all.last.numbers, ['16', '61']);
-    expect(all.last.headlineTh, 'งูสีขาว • หน้าบ้าน');
+    expect(all.last.headlineTh, 'นกสีขาว • หน้าบ้าน');
 
     await repo.remove('1');
     expect((await repo.all()).map((e) => e.id), ['2']);

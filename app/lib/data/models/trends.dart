@@ -1,4 +1,4 @@
-/// Trending symbol banner data (e.g. "งูขาว" +38% today).
+/// Trending symbol banner data (e.g. "นกขาว" +38% today).
 class TrendingSymbol {
   const TrendingSymbol({
     required this.nameTh,
