@@ -171,12 +171,11 @@ void main() {
     expect(find.text('ตรวจหวยรัฐบาล'), findsOneWidget);
   });
 
-  testWidgets('ดวงของฉัน asks for a month and invents nothing', (tester) async {
+  testWidgets('ดวงของฉัน asks for a birth date and invents nothing',
+      (tester) async {
     // This screen used to render a ลัคนา, a badge claiming birth data was on
     // file, four 'เลขประจำดวง' and a line of money advice — all constants in a
-    // mock, none of them backed by anything the user had ever entered. The
-    // assertions below are absence assertions on purpose: they fail the moment
-    // any of it is reintroduced.
+    // mock. The absence assertions below fail the moment any of it returns.
     tester.view.physicalSize = const Size(420, 1600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
@@ -187,49 +186,70 @@ void main() {
 
     expect(find.text('ดวงของฉัน'), findsOneWidget);
     expect(find.text('เก็บไว้ในเครื่องนี้เท่านั้น'), findsOneWidget);
-    expect(find.text('มกราคม'), findsOneWidget);
-    expect(find.text('ธันวาคม'), findsOneWidget);
+    // The privacy card must name the field it actually stores. A date of birth
+    // is more identifying than a month, so the copy may not soften it.
+    expect(find.text('เก็บ: วันเดือนปีเกิด'), findsOneWidget);
+    expect(find.text('วัน'), findsOneWidget);
+    expect(find.text('เดือน'), findsOneWidget);
+    expect(find.text('ปี พ.ศ.'), findsOneWidget);
 
     expect(find.textContaining('ลัคนา'), findsNothing);
     expect(find.textContaining('ข้อมูลเกิดครบ'), findsNothing);
     expect(find.textContaining('เลขประจำดวง'), findsNothing);
 
-    // Nothing chosen yet, so no reading section exists to be read.
-    expect(find.textContaining('เดือนเกิด: '), findsNothing);
+    // Nothing chosen yet, so no lunar date exists to be shown.
+    expect(find.textContaining('ตรงกับวันทางจันทรคติ'), findsNothing);
   });
 
-  testWidgets('choosing a month persists it and stays honest about readings',
+  testWidgets('a complete birth date shows a real lunar date, not a reading',
+      (tester) async {
+    tester.view.physicalSize = const Size(420, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    // Seeded rather than driven through three dropdowns: the storage migration
+    // path is covered in local_repositories_test.dart, and what matters here is
+    // what the screen renders for a known date.
+    //
+    // 29 ก.ค. 2569 is ขึ้น 15 ค่ำ เดือนแปดหลัง — วันอาสาฬหบูชา in an อธิกมาส
+    // year, corroborated against published holiday records.
+    SharedPreferences.setMockInitialValues(
+        {'nimit.birth.v2': '{"date":"2026-07-29"}'});
+    await pumpApp(tester);
+    appRouter.go('/fortune');
+    await tester.pumpAndSettle();
+
+    expect(find.text('ขึ้น 15 ค่ำ เดือนแปดหลัง พ.ศ. 2569'), findsOneWidget);
+    expect(find.text('อธิกมาส · ปกติวาร'), findsOneWidget);
+    // เดือนแปดหลัง is the one thing a user cannot work out unaided.
+    expect(find.textContaining('ไม่ใช่เดือนเก้า'), findsOneWidget);
+
+    // A calendar conversion is shown; a prediction is not.
+    expect(find.text('ยังไม่มีในคลังตำรา'), findsOneWidget);
+    expect(find.text('ลบวันเกิดออกจากเครื่อง'), findsOneWidget);
+  });
+
+  testWidgets('a legacy month-only profile asks for the rest, not for nothing',
       (tester) async {
     tester.view.physicalSize = const Size(420, 1600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
 
+    // Users of the month-only build must not open the screen and find their
+    // answer gone.
+    SharedPreferences.setMockInitialValues(
+        {'nimit.birthmonth.v1': '{"month":7}'});
     await pumpApp(tester);
     appRouter.go('/fortune');
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('กรกฎาคม'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('เดือนเกิด: กรกฎาคม'), findsOneWidget);
-    // The reading is empty and says so, rather than filling the space.
-    expect(find.text('ยังไม่มีในคลังตำรา'), findsOneWidget);
-
-    final prefs = await SharedPreferences.getInstance();
-    expect(prefs.getString('nimit.birthmonth.v1'), contains('7'));
-
-    // Deleting is offered on the same screen and actually clears storage.
-    await tester.tap(find.text('ลบเดือนเกิดออกจากเครื่อง'));
-    await tester.pumpAndSettle();
-
-    expect(find.text('เดือนเกิด: กรกฎาคม'), findsNothing);
-    expect(prefs.getString('nimit.birthmonth.v1'), isNull);
+    expect(find.textContaining('เดิมคุณบอกไว้แค่เดือน กรกฎาคม'), findsOneWidget);
+    // And no lunar date is claimed, because a month alone cannot produce one.
+    expect(find.textContaining('ตรงกับวันทางจันทรคติ'), findsNothing);
   });
 
-  testWidgets('ดวง month grid survives a 360 px phone', (tester) async {
-    // Three fixed columns with the longest month names in Thai (พฤศจิกายน,
-    // กุมภาพันธ์) is exactly the layout that overflows on a cheap handset,
-    // which is most of this audience's hardware.
+  testWidgets('the date picker survives a 360 px phone', (tester) async {
+    // Three fields side by side on the cheapest handset this audience carries.
     tester.view.physicalSize = const Size(360, 780);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.reset);
@@ -238,12 +258,10 @@ void main() {
     appRouter.go('/fortune');
     await tester.pumpAndSettle();
 
-    await tester.tap(find.text('พฤศจิกายน'));
-    await tester.pumpAndSettle();
-
     expect(tester.takeException(), isNull);
-    expect(find.text('เดือนเกิด: พฤศจิกายน'), findsOneWidget);
+    expect(find.text('ปี พ.ศ.'), findsOneWidget);
   });
+
 
   testWidgets('กระแสปีนี้ shows real draws joined to ตำรา meaning',
       (tester) async {

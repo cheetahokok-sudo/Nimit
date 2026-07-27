@@ -315,16 +315,19 @@ class BirthProfileNotifier extends AsyncNotifier<BirthProfile> {
   Future<BirthProfile> build() =>
       ref.watch(birthProfileRepositoryProvider).load();
 
-  Future<void> setMonth(int? month) async {
-    final next = BirthProfile(month: month);
+  Future<void> setDate(DateTime date) async {
+    final next = BirthProfile(date: DateTime(date.year, date.month, date.day));
     await ref.read(birthProfileRepositoryProvider).save(next);
     ref.invalidateSelf();
   }
 
   /// Deleting it must be as easy as setting it — the screen offers this, so a
   /// user who changes their mind is not stuck with data they no longer want on
-  /// their phone.
-  Future<void> clear() => setMonth(null);
+  /// their phone. Clears the legacy month key too.
+  Future<void> clear() async {
+    await ref.read(birthProfileRepositoryProvider).save(const BirthProfile());
+    ref.invalidateSelf();
+  }
 }
 
 final birthProfileProvider =

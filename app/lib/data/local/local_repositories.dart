@@ -173,12 +173,31 @@ class LocalBudgetRepository implements BudgetRepository {
 class LocalBirthProfileRepository implements BirthProfileRepository {
   LocalBirthProfileRepository(this._prefs);
 
-  static const _key = 'nimit.birthmonth.v1';
+  /// The current key. Named for what it now holds — a date, not a month.
+  static const _key = 'nimit.birth.v2';
+
+  /// The month-only key this replaced. Still READ, never written.
+  ///
+  /// A new key normally orphans a user's data, which is why the saved-tickets
+  /// key was deliberately never bumped. Here the field genuinely changed
+  /// meaning, so the key follows it and the old one is migrated on read
+  /// instead. What must not happen is a month the user typed silently
+  /// vanishing because the payload shape moved on.
+  static const _legacyKey = 'nimit.birthmonth.v1';
+
   final SharedPreferences _prefs;
 
   @override
   Future<BirthProfile> load() async {
-    final raw = _prefs.getString(_key);
+    final profile = _decode(_prefs.getString(_key));
+    if (!profile.isEmpty) return profile;
+    // Nothing under the new key: fall back to the month-only one. The result
+    // reports needsUpgrade, so the screen asks for the rest of the date rather
+    // than pretending it never knew.
+    return _decode(_prefs.getString(_legacyKey));
+  }
+
+  BirthProfile _decode(String? raw) {
     if (raw == null) return const BirthProfile();
     try {
       final decoded = jsonDecode(raw);
@@ -194,10 +213,21 @@ class LocalBirthProfileRepository implements BirthProfileRepository {
 
   @override
   Future<void> save(BirthProfile profile) async {
-    if (!profile.isSet) {
-      await _prefs.remove(_key);
+    if (profile.isEmpty) {
+      await _clearAll();
       return;
     }
     await _prefs.setString(_key, jsonEncode(profile.toJson()));
+    // A completed date supersedes the legacy month; leaving it behind would
+    // mean birth data lingering under a key nothing reads any more.
+    if (profile.isComplete) await _prefs.remove(_legacyKey);
+  }
+
+  /// Both keys, because the screen promises "ลบแล้วหายทันที" and that has to be
+  /// true of the disk. Removing only the current key would leave a month
+  /// behind that the next load would happily resurrect.
+  Future<void> _clearAll() async {
+    await _prefs.remove(_key);
+    await _prefs.remove(_legacyKey);
   }
 }

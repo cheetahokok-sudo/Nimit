@@ -194,57 +194,112 @@ void main() {
     });
   });
 
-  group('birth month', () {
-    test('starts unset, and unset is a working state', () async {
+  group('birth date', () {
+    test('starts empty, and empty is a working state', () async {
       final prefs = await SharedPreferences.getInstance();
-      final profile = await LocalBirthProfileRepository(prefs).load();
+      final p = await LocalBirthProfileRepository(prefs).load();
 
-      expect(profile.month, isNull);
-      expect(profile.isSet, isFalse);
+      expect(p.date, isNull);
+      expect(p.isComplete, isFalse);
+      expect(p.isEmpty, isTrue);
     });
 
-    test('round-trips through storage', () async {
+    test('round-trips a date through storage', () async {
       final prefs = await SharedPreferences.getInstance();
       final repo = LocalBirthProfileRepository(prefs);
 
-      await repo.save(const BirthProfile(month: 7));
+      await repo.save(BirthProfile(date: DateTime(1993, 7, 15)));
 
-      expect((await LocalBirthProfileRepository(prefs).load()).month, 7);
+      final back = await LocalBirthProfileRepository(prefs).load();
+      expect(back.date, DateTime(1993, 7, 15));
+      expect(back.isComplete, isTrue);
     });
 
-    test('clearing removes the key, not just the value', () async {
-      // The privacy card promises 'ลบแล้วหายทันที'. A row left behind holding
-      // {"month": null} would still be birth data on the device, so the
-      // promise has to be true of the storage, not only of the screen.
+    test('a legacy month-only profile is migrated, not discarded', () async {
+      // The month-only version of this app wrote nimit.birthmonth.v1. Users who
+      // set a month before the field widened must not find it silently gone.
+      SharedPreferences.setMockInitialValues(
+          {'nimit.birthmonth.v1': '{"month": 7}'});
+      final prefs = await SharedPreferences.getInstance();
+
+      final p = await LocalBirthProfileRepository(prefs).load();
+
+      expect(p.legacyMonth, 7);
+      expect(p.needsUpgrade, isTrue,
+          reason: 'the screen must ask for the rest of the date');
+      expect(p.isComplete, isFalse,
+          reason: 'a month alone cannot produce a lunar month');
+    });
+
+    test('saving a full date retires the legacy key', () async {
+      SharedPreferences.setMockInitialValues(
+          {'nimit.birthmonth.v1': '{"month": 7}'});
       final prefs = await SharedPreferences.getInstance();
       final repo = LocalBirthProfileRepository(prefs);
 
-      await repo.save(const BirthProfile(month: 3));
+      await repo.save(BirthProfile(date: DateTime(1993, 7, 15)));
+
+      expect(prefs.getString('nimit.birthmonth.v1'), isNull,
+          reason: 'birth data must not linger under a key nothing reads');
+      expect((await repo.load()).date, DateTime(1993, 7, 15));
+    });
+
+    test('clearing removes BOTH keys, not just the current one', () async {
+      // The privacy card promises "ลบแล้วหายทันที". Leaving the legacy month
+      // behind would let the next load resurrect it.
+      SharedPreferences.setMockInitialValues(
+          {'nimit.birthmonth.v1': '{"month": 3}'});
+      final prefs = await SharedPreferences.getInstance();
+      final repo = LocalBirthProfileRepository(prefs);
+
+      await repo.save(BirthProfile(date: DateTime(1980, 3, 2)));
       await repo.save(const BirthProfile());
 
       expect(prefs.getKeys().where((k) => k.contains('birth')), isEmpty);
-      expect((await repo.load()).month, isNull);
+      expect((await repo.load()).isEmpty, isTrue);
     });
 
-    test('a corrupt payload reads as unset instead of throwing', () async {
+    test('a corrupt payload reads as empty instead of throwing', () async {
       SharedPreferences.setMockInitialValues(
-          {'nimit.birthmonth.v1': 'not json at all'});
+          {'nimit.birth.v2': 'not json at all'});
       final prefs = await SharedPreferences.getInstance();
 
-      expect((await LocalBirthProfileRepository(prefs).load()).month, isNull);
+      expect((await LocalBirthProfileRepository(prefs).load()).isEmpty, isTrue);
     });
 
-    test('an out-of-range month reads as unset, never clamped', () async {
-      // Clamping 0 to January would show someone a reading for a month they
-      // were not born in — quietly wrong is worse than visibly empty.
-      for (final bad in [0, 13, -1, 99]) {
+    test('an unparseable date reads as empty, never as a guess', () async {
+      // A half-understood date would hand somebody a stranger's lunar month.
+      for (final bad in ['15/07/1993', '1993-13-45', '', 'null']) {
+        SharedPreferences.setMockInitialValues(
+            {'nimit.birth.v2': '{"date": "$bad"}'});
+        final prefs = await SharedPreferences.getInstance();
+
+        expect((await LocalBirthProfileRepository(prefs).load()).date, isNull,
+            reason: 'date "$bad" should not resolve');
+      }
+    });
+
+    test('an out-of-range legacy month reads as absent, never clamped', () async {
+      for (final bad in [0, 13, -1]) {
         SharedPreferences.setMockInitialValues(
             {'nimit.birthmonth.v1': '{"month": $bad}'});
         final prefs = await SharedPreferences.getInstance();
 
-        expect((await LocalBirthProfileRepository(prefs).load()).month, isNull,
-            reason: 'month $bad should not resolve to a real month');
+        expect(
+            (await LocalBirthProfileRepository(prefs).load()).legacyMonth, isNull,
+            reason: 'month $bad should not become a real month');
       }
+    });
+
+    test('a stored time component is dropped', () async {
+      // Time of day is deliberately not collected; if some future writer put
+      // one in, it must not leak into equality or the conversion.
+      SharedPreferences.setMockInitialValues(
+          {'nimit.birth.v2': '{"date": "1993-07-15T23:45:00"}'});
+      final prefs = await SharedPreferences.getInstance();
+
+      expect((await LocalBirthProfileRepository(prefs).load()).date,
+          DateTime(1993, 7, 15));
     });
   });
 }
