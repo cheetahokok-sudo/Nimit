@@ -199,12 +199,29 @@ begin
       '(is the edition phrommachat-2506 present?)', got;
   end if;
 
-  -- Nothing here may be published: single copyrighted source, no corroboration.
-  select count(*) into got from content.interpretation i
+  -- Publishing is allowed, but only on the terms the rights firewall sets:
+  -- a published reading must rest on a work that is free, or carry at least one
+  -- corroborating edition.
+  --
+  -- An earlier version of this assertion simply demanded zero published rows.
+  -- That encoded a TEMPORARY state — "we have not cleared these yet" — as a
+  -- permanent invariant, so the seed would have started failing the moment the
+  -- content was legitimately published. The invariant below is the one that is
+  -- actually true, and it mirrors content.enforce_corroboration() rather than
+  -- second-guessing it.
+  select count(*) into got
+    from content.interpretation i
     join content.symbol s on s.id = i.symbol_id
-   where s.concept_key like 'BIRTHDAY_%' and i.status = 'published';
+    join content.passage p on p.id = i.passage_id
+    join content.edition e on e.id = p.edition_id
+    join content.work    w on w.id = e.work_id
+   where s.concept_key like 'BIRTHDAY_%'
+     and i.status = 'published'
+     and w.rights = 'copyrighted_cite_only'
+     and coalesce(array_length(i.corroborating_edition_ids, 1), 0) < 1;
   if got <> 0 then
-    raise exception 'taksa v1: % reading(s) published without a second source', got;
+    raise exception 'taksa v1: % published reading(s) rest on a copyrighted work '
+      'with no corroborating edition', got;
   end if;
 
   -- And they must stay invisible to the dream scanner.
