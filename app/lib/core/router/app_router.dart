@@ -4,6 +4,7 @@ import '../../features/dream/dream_entry_screen.dart';
 import '../../features/dream/dream_result_screen.dart';
 import '../../features/fortune/fortune_screen.dart';
 import '../../features/home/home_screen.dart';
+import '../../features/library/symbol_story_screen.dart';
 import '../../features/lottery/lottery_history_screen.dart';
 import '../../features/lottery/lottery_me_screen.dart';
 import '../../features/lottery/lottery_prizes_screen.dart';
@@ -50,6 +51,15 @@ final appRouter = GoRouter(
           GoRoute(
             path: '/trends',
             builder: (context, state) => const TrendsScreen(),
+            // Nested so the symbol story keeps the shell chrome, same as
+            // /dream/result and the ตรวจหวย sub-routes.
+            routes: [
+              GoRoute(
+                path: 'symbol/:slug',
+                builder: (context, state) => SymbolStoryScreen(
+                    slug: state.pathParameters['slug'] ?? ''),
+              ),
+            ],
           ),
         ]),
         StatefulShellBranch(routes: [

@@ -160,7 +160,7 @@ void main() {
 
     await tester.tap(find.text('กระแส'));
     await tester.pumpAndSettle();
-    expect(find.text('กระแสวันนี้'), findsOneWidget);
+    expect(find.text('กระแสปีนี้'), findsOneWidget);
 
     await tester.tap(find.text('ดวง'));
     await tester.pumpAndSettle();
@@ -169,6 +169,35 @@ void main() {
     await tester.tap(find.text('ตรวจหวย'));
     await tester.pumpAndSettle();
     expect(find.text('ตรวจหวยรัฐบาล'), findsOneWidget);
+  });
+
+  testWidgets('กระแสปีนี้ shows real draws joined to ตำรา meaning',
+      (tester) async {
+    // The screen this replaced shipped invented "community mention" counts to
+    // production with a caption claiming they came from public posts. Every
+    // row here must be a draw that actually happened.
+    tester.view.physicalSize = const Size(420, 1400);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await pumpApp(tester, lottery: _FixtureLotteryRepository.announced());
+    await tester.tap(find.text('กระแส'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('กระแสปีนี้'), findsOneWidget);
+    // The drawn number and the symbol ตำรา tie to it appear together.
+    expect(find.text('71'), findsWidgets);
+    expect(find.text('ปลาเงินปลาทอง'), findsOneWidget);
+
+    // None of the fabricated copy may survive anywhere on this screen.
+    for (final ghost in [
+      'สัญลักษณ์มาแรง',
+      'เลขที่ถูกพูดถึง',
+      'ข้อมูลจากโพสต์สาธารณะและการค้นหาในแอป',
+    ]) {
+      expect(find.text(ghost), findsNothing, reason: 'stale mock copy: $ghost');
+    }
+    expect(tester.takeException(), isNull);
   });
 
   group('ตรวจหวย renders money and withholds verdicts correctly', () {
@@ -361,6 +390,19 @@ class _FixtureLotteryRepository implements LotteryRepository {
 
   @override
   Future<List<DrawResult>> recentDraws({int limit = 12}) async => [_draw()];
+
+  @override
+  Future<YearTrends> yearTrends({int windowDraws = 24}) async => const
+      YearTrends(
+    windowDraws: 1,
+    coveredByLibrary: 1,
+    drawn: [
+      DrawnNumber(number: '71', times: 1, symbols: [
+        NumberSymbol(slug: 'goldfish', nameTh: 'ปลาเงินปลาทอง'),
+      ]),
+    ],
+    noteTh: 'ทดสอบ',
+  );
 
   @override
   Future<List<DrawSummary>> history({int limit = 48}) async => [

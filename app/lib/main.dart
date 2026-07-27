@@ -8,6 +8,7 @@ import 'core/router/app_router.dart';
 import 'core/theme/nimit_theme.dart';
 import 'data/providers.dart';
 import 'data/remote/postgrest_dream_repository.dart';
+import 'data/remote/postgrest_library_repository.dart';
 import 'data/remote/postgrest_lottery_repository.dart';
 import 'data/remote/postgrest_sources_repository.dart';
 
@@ -40,6 +41,14 @@ Future<void> main() async {
           // The core loop: เล่าความฝัน → real analysis from the live library.
           dreamRepositoryProvider.overrideWithValue(
             PostgrestDreamRepository(
+              baseUrl: _supabaseUrl,
+              anonKey: _supabaseAnonKey,
+            ),
+          ),
+          // The library browse path: symbol stories, and the numbers ตำรา tie
+          // to them. Anon-callable by design.
+          libraryRepositoryProvider.overrideWithValue(
+            PostgrestLibraryRepository(
               baseUrl: _supabaseUrl,
               anonKey: _supabaseAnonKey,
             ),

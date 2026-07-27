@@ -99,6 +99,13 @@ class PostgrestLotteryRepository implements LotteryRepository {
   }
 
   @override
+  Future<YearTrends> yearTrends({int windowDraws = 24}) async {
+    final decoded =
+        await _rpc('lottery_year_trends', {'p_window': windowDraws});
+    return YearTrends.fromJson(decoded as Map<String, dynamic>);
+  }
+
+  @override
   Future<DigitStats> digitStats({int windowDraws = 24}) async {
     final decoded = await _rpc('lottery_digit_stats', {'p_window': windowDraws});
     return DigitStats.fromJson(decoded as Map<String, dynamic>);

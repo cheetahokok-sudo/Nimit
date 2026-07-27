@@ -1,5 +1,6 @@
 import '../models/dream.dart';
 import '../models/fortune.dart';
+import '../models/library.dart';
 import '../models/lottery.dart';
 import '../models/source.dart';
 import '../models/trends.dart';
@@ -61,8 +62,16 @@ abstract interface class LotteryRepository {
   /// Full detail for one งวด, fetched when a history row is expanded.
   Future<DrawResult> drawFor(DateTime date);
 
+  /// กระแสปีนี้ — real draws over the past year joined to ตำรา meaning.
+  Future<YearTrends> yearTrends({int windowDraws = 24});
+
   /// Digit frequency over a window of past draws.
   Future<DigitStats> digitStats({int windowDraws = 24});
+}
+
+/// The library browse path: one symbol, everything known about it.
+abstract interface class LibraryRepository {
+  Future<SymbolStory> story(String slug);
 }
 
 abstract interface class SourcesRepository {

@@ -1,6 +1,7 @@
 import '../../core/utils/thai_date.dart';
 import '../models/dream.dart';
 import '../models/fortune.dart';
+import '../models/library.dart';
 import '../models/lottery.dart';
 import '../models/source.dart';
 import '../models/trends.dart';
@@ -168,6 +169,25 @@ class MockLotteryRepository implements LotteryRepository {
   }
 
   @override
+  Future<YearTrends> yearTrends({int windowDraws = 24}) async {
+    await Future<void>.delayed(_latency);
+    // Demo shape only, and deliberately small: the screen this feeds used to
+    // ship invented "community mention" counts as if they were measured, so
+    // the mock now shows an obviously thin sample rather than a convincing one.
+    return const YearTrends(
+      windowDraws: 1,
+      coveredByLibrary: 1,
+      drawn: [
+        DrawnNumber(number: '47', times: 1, symbols: [
+          NumberSymbol(slug: 'butterfly', nameTh: 'ผีเสื้อ'),
+        ]),
+      ],
+      noteTh: 'ข้อมูลตัวอย่างสำหรับทดลองใช้งาน — '
+          'เลขที่ออกแล้วไม่ได้บอกว่าเลขใดจะออกงวดหน้า',
+    );
+  }
+
+  @override
   Future<DigitStats> digitStats({int windowDraws = 24}) async {
     await Future<void>.delayed(_latency);
     return DigitStats(
@@ -242,4 +262,28 @@ class MockSourcesRepository implements SourcesRepository {
 
   @override
   Future<int> libraryCount() async => 147;
+}
+
+/// Demo story for the symbol screen before a Supabase connection exists.
+class MockLibraryRepository implements LibraryRepository {
+  @override
+  Future<SymbolStory> story(String slug) async {
+    await Future<void>.delayed(_latency);
+    return const SymbolStory(
+      slug: 'bird',
+      nameTh: 'นก',
+      category: 'สัญลักษณ์ในความฝัน',
+      numbers: [],
+      readings: [
+        SymbolReading(
+          tier: SourceTier.a2,
+          workTh: 'ตัวอย่างข้อมูล',
+          locatorTh: 'ตัวอย่าง',
+          plainTh: 'ตัวอย่างคำแปล — เชื่อมฐานข้อมูลจริงเพื่อดูเนื้อหาจากตำรา',
+        ),
+      ],
+      related: [],
+      narrower: [],
+    );
+  }
 }

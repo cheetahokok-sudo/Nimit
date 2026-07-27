@@ -372,6 +372,87 @@ class DrawSummary {
       );
 }
 
+/// A symbol the ตำรา tie to a drawn number.
+class NumberSymbol {
+  const NumberSymbol({required this.slug, required this.nameTh, this.plainTh});
+
+  final String slug;
+  final String nameTh;
+  final String? plainTh;
+
+  factory NumberSymbol.fromJson(Map<String, dynamic> json) => NumberSymbol(
+        slug: json['slug'] as String? ?? '',
+        nameTh: json['nameTh'] as String? ?? '',
+        plainTh: json['plainTh'] as String?,
+      );
+}
+
+/// A เลขท้าย 2 ตัว that actually came out, with how often and what it means.
+class DrawnNumber {
+  const DrawnNumber({
+    required this.number,
+    required this.times,
+    required this.symbols,
+    this.lastSeen,
+  });
+
+  final String number;
+  final int times;
+  final List<NumberSymbol> symbols;
+  final DateTime? lastSeen;
+
+  bool get hasMeaning => symbols.isNotEmpty;
+
+  factory DrawnNumber.fromJson(Map<String, dynamic> json) => DrawnNumber(
+        number: json['number'] as String? ?? '',
+        times: (json['times'] as num?)?.toInt() ?? 0,
+        lastSeen: _parseDate(json['lastSeen']),
+        symbols: [
+          for (final s in (json['symbols'] as List<dynamic>? ?? const []))
+            NumberSymbol.fromJson(s as Map<String, dynamic>),
+        ],
+      );
+}
+
+/// กระแสปีนี้ — what actually came out over the past year, joined to meaning.
+///
+/// Replaces a screen that shipped invented "community mention" counts with a
+/// caption claiming they came from public posts. This carries only draws that
+/// really happened; where the library has no reading for a number, it says so
+/// rather than filling the gap.
+class YearTrends {
+  const YearTrends({
+    required this.windowDraws,
+    required this.drawn,
+    required this.coveredByLibrary,
+    required this.noteTh,
+    this.fromDate,
+    this.toDate,
+  });
+
+  final int windowDraws;
+  final List<DrawnNumber> drawn;
+  final int coveredByLibrary;
+
+  /// The randomness caveat, served with the data so the UI cannot show
+  /// frequencies without it.
+  final String noteTh;
+  final DateTime? fromDate;
+  final DateTime? toDate;
+
+  factory YearTrends.fromJson(Map<String, dynamic> json) => YearTrends(
+        windowDraws: (json['windowDraws'] as num?)?.toInt() ?? 0,
+        coveredByLibrary: (json['coveredByLibrary'] as num?)?.toInt() ?? 0,
+        noteTh: json['noteTh'] as String? ?? '',
+        fromDate: _parseDate(json['fromDate']),
+        toDate: _parseDate(json['toDate']),
+        drawn: [
+          for (final d in (json['drawn'] as List<dynamic>? ?? const []))
+            DrawnNumber.fromJson(d as Map<String, dynamic>),
+        ],
+      );
+}
+
 /// One bucket of the เลขท้าย 2 ตัว frequency table.
 class Last2Bucket {
   const Last2Bucket({required this.number, required this.count, this.lastSeen});

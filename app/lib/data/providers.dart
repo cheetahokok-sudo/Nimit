@@ -6,6 +6,7 @@ import 'lottery_checker.dart';
 import 'mock/mock_repositories.dart';
 import 'models/dream.dart';
 import 'models/fortune.dart';
+import 'models/library.dart';
 import 'models/lottery.dart';
 import 'models/source.dart';
 import 'models/trends.dart';
@@ -109,6 +110,21 @@ final latestDrawProvider = FutureProvider<DrawResult>(
 
 final recentDrawsProvider = FutureProvider<List<DrawResult>>(
   (ref) => ref.watch(lotteryRepositoryProvider).recentDraws(),
+);
+
+final libraryRepositoryProvider = Provider<LibraryRepository>(
+  (ref) => MockLibraryRepository(),
+);
+
+/// One symbol, everything known about it. Family-keyed by slug so opening
+/// the same symbol twice does not refetch.
+final symbolStoryProvider = FutureProvider.family<SymbolStory, String>(
+  (ref, slug) => ref.watch(libraryRepositoryProvider).story(slug),
+);
+
+/// กระแสปีนี้ — real draws joined to ตำรา meaning.
+final yearTrendsProvider = FutureProvider<YearTrends>(
+  (ref) => ref.watch(lotteryRepositoryProvider).yearTrends(),
 );
 
 final digitStatsProvider = FutureProvider<DigitStats>(
