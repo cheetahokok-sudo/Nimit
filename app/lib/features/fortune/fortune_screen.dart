@@ -420,23 +420,102 @@ class _LunarResult extends StatelessWidget {
         _FactRow(label: 'ชนิดของปี', value: birth.yearTypeTh),
 
         const SizedBox(height: 18),
+        _TaksaSection(weekday: birth.effectiveCivilDate.weekday),
+      ],
+    );
+  }
+}
+
+/// The ทักษา reading for the user’s birth weekday, or an honest account of
+/// why there is none.
+///
+/// Only the weekday is sent. The birth date stays on the device, the same way
+/// a lottery ticket number never travels.
+class _TaksaSection extends ConsumerWidget {
+  const _TaksaSection({required this.weekday});
+
+  final int weekday;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final textTheme = Theme.of(context).textTheme;
+    final taksa = ref.watch(taksaProvider(weekday));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
         const SectionHeader('คำทำนายตามตำรา'),
         const SizedBox(height: 10),
-        SectionCard(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text('ยังไม่มีตำราในคลังที่ทำนายจากวันเดือนปีเกิด',
-                  style: textTheme.titleSmall!
-                      .copyWith(fontWeight: FontWeight.w700)),
-              const SizedBox(height: 8),
-              Text(
-                  'ข้างบนคือสิ่งที่คำนวณได้จริง ตรวจสอบกับปฏิทินได้ทุกบรรทัด '
-                  'ส่วนคำทำนายต้องมีตำราที่อ้างอิงได้ก่อน นิมิตจะไม่แต่งขึ้นเอง '
-                  'เมื่อได้ตำรามาแล้ว คำทำนายจะขึ้นตรงนี้พร้อมบอกว่ามาจากเล่มไหน หน้าไหน',
-                  style: textTheme.bodyMedium!.copyWith(height: 1.6)),
-            ],
+        taksa.when(
+          loading: () => const SectionCard(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: CircularProgressIndicator(),
+              ),
+            ),
           ),
+          // A fetch failure is not the same as "no reading exists", and must
+          // not be dressed up as one.
+          error: (e, _) => const SectionCard(
+            child: DisclaimerText('ยังโหลดคำทำนายไม่ได้ ลองใหม่อีกครั้ง'),
+          ),
+          data: (t) => t.hasReading
+              ? Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    for (final r in t.readings) ...[
+                      SectionCard(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            Text(r.summaryTh,
+                                style: textTheme.titleSmall!.copyWith(
+                                    fontWeight: FontWeight.w700, height: 1.5)),
+                            const SizedBox(height: 10),
+                            Text(r.bodyTh,
+                                style: textTheme.bodyMedium!
+                                    .copyWith(height: 1.6)),
+                            const SizedBox(height: 12),
+                            const Divider(
+                                color: NimitColors.border, height: 1),
+                            const SizedBox(height: 10),
+                            // Every reading carries its source. The citation is
+                            // assembled in the model, so a reading cannot reach
+                            // the screen without one.
+                            Text('ที่มา: ${r.sourceTh}',
+                                style: textTheme.bodySmall!.copyWith(
+                                    color: NimitColors.inkSoft, height: 1.45)),
+                            if (r.contextNoteTh.isNotEmpty) ...[
+                              const SizedBox(height: 6),
+                              Text(r.contextNoteTh,
+                                  style: textTheme.bodySmall!.copyWith(
+                                      color: NimitColors.inkSoft,
+                                      height: 1.45)),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(height: 10),
+                    ],
+                  ],
+                )
+              : SectionCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('ยังไม่มีตำราในคลังที่ทำนายจากวันเดือนปีเกิด',
+                          style: textTheme.titleSmall!
+                              .copyWith(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 8),
+                      Text(
+                          'ข้างบนคือสิ่งที่คำนวณได้จริง ตรวจสอบกับปฏิทินได้ทุกบรรทัด '
+                          'ส่วนคำทำนายต้องมีตำราที่อ้างอิงได้ก่อน นิมิตจะไม่แต่งขึ้นเอง '
+                          'เมื่อได้ตำรามาแล้ว คำทำนายจะขึ้นตรงนี้พร้อมบอกว่ามาจากเล่มไหน หน้าไหน',
+                          style: textTheme.bodyMedium!.copyWith(height: 1.6)),
+                    ],
+                  ),
+                ),
         ),
       ],
     );

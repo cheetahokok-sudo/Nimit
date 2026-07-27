@@ -52,4 +52,25 @@ class PostgrestLibraryRepository implements LibraryRepository {
     }
     return SymbolStory.fromJson(decoded);
   }
+
+  @override
+  Future<TaksaReading> taksa(int weekday) async {
+    final uri = Uri.parse('$baseUrl/rest/v1/rpc/taksa_birthday');
+    final body = utf8.encode(jsonEncode({'p_weekday': weekday}));
+    final response =
+        await _client.post(uri, headers: _headers, body: body).timeout(_timeout);
+    if (response.statusCode != 200) {
+      throw Exception('taksa_birthday returned HTTP ${response.statusCode}');
+    }
+    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    if (decoded is! Map<String, dynamic>) {
+      // SQL NULL — the birthday symbol is not published yet. Unlike
+      // symbol_story, this is NOT an error: it is the expected state until a
+      // second source clears these readings. Return an empty reading so the
+      // screen shows its honest empty state rather than a failure.
+      return TaksaReading(
+          slug: '', nameTh: '', weekday: weekday, readings: const []);
+    }
+    return TaksaReading.fromJson(decoded);
+  }
 }

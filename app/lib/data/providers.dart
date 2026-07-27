@@ -115,6 +115,14 @@ final libraryRepositoryProvider = Provider<LibraryRepository>(
 
 /// One symbol, everything known about it. Family-keyed by slug so opening
 /// the same symbol twice does not refetch.
+/// ทักษา reading for a weekday (1=Mon..7=Sun).
+///
+/// Family-keyed on the weekday alone. The birth date never leaves the device;
+/// the only thing that travels is which of seven days it fell on.
+final taksaProvider = FutureProvider.family<TaksaReading, int>(
+  (ref, weekday) => ref.watch(libraryRepositoryProvider).taksa(weekday),
+);
+
 final symbolStoryProvider = FutureProvider.family<SymbolStory, String>(
   (ref, slug) => ref.watch(libraryRepositoryProvider).story(slug),
 );

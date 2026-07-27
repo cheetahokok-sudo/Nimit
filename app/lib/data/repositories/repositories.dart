@@ -77,6 +77,10 @@ abstract interface class LotteryRepository {
 /// The library browse path: one symbol, everything known about it.
 abstract interface class LibraryRepository {
   Future<SymbolStory> story(String slug);
+
+  /// The ทักษา reading for a weekday (1=Mon..7=Sun). Sends only the day —
+  /// never the birth date, which stays on the device.
+  Future<TaksaReading> taksa(int weekday);
 }
 
 abstract interface class SourcesRepository {

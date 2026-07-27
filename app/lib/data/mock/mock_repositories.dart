@@ -239,6 +239,16 @@ class MockSourcesRepository implements SourcesRepository {
 
 /// Demo story for the symbol screen before a Supabase connection exists.
 class MockLibraryRepository implements LibraryRepository {
+  /// Empty by default, and deliberately so: the ทักษา readings exist only in
+  /// draft, from one copyrighted source, so the shipped behaviour is an honest
+  /// empty state. A test that wants the populated path supplies its own.
+  @override
+  Future<TaksaReading> taksa(int weekday) async {
+    await Future<void>.delayed(_latency);
+    return TaksaReading(
+        slug: '', nameTh: '', weekday: weekday, readings: const []);
+  }
+
   @override
   Future<SymbolStory> story(String slug) async {
     await Future<void>.delayed(_latency);

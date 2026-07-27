@@ -115,3 +115,72 @@ class SymbolStory {
         ],
       );
 }
+
+/// A ทักษา reading for a day of the week, as returned by `api.taksa_birthday`.
+///
+/// [readings] is EMPTY when nothing is published yet, which is the current
+/// state: the only source is a single copyrighted 1963 printing of พรหมชาติ, so
+/// every row sits at draft pending a second witness. Empty is a real answer and
+/// the screen renders an honest empty state for it — it is not an error and
+/// must not be reported as one.
+class TaksaReading {
+  const TaksaReading({
+    required this.slug,
+    required this.nameTh,
+    required this.weekday,
+    required this.readings,
+  });
+
+  final String slug;
+  final String nameTh;
+
+  /// 1=Monday .. 7=Sunday, matching DateTime.weekday.
+  final int weekday;
+
+  final List<TaksaEntry> readings;
+
+  bool get hasReading => readings.isNotEmpty;
+
+  factory TaksaReading.fromJson(Map<String, dynamic> json) => TaksaReading(
+        slug: json['slug'] as String? ?? '',
+        nameTh: json['nameTh'] as String? ?? '',
+        weekday: (json['weekday'] as num?)?.toInt() ?? 0,
+        readings: [
+          for (final r in (json['readings'] as List? ?? const []))
+            TaksaEntry.fromJson(r as Map<String, dynamic>)
+        ],
+      );
+}
+
+class TaksaEntry {
+  const TaksaEntry({
+    required this.bodyTh,
+    required this.summaryTh,
+    required this.contextNoteTh,
+    required this.sourceTh,
+  });
+
+  final String bodyTh;
+  final String summaryTh;
+  final String contextNoteTh;
+
+  /// A single rendered citation line. Assembled here rather than in the widget
+  /// so a reading can never appear on screen without one.
+  final String sourceTh;
+
+  factory TaksaEntry.fromJson(Map<String, dynamic> json) {
+    final s = json['source'] as Map<String, dynamic>? ?? const {};
+    final parts = <String>[
+      if (s['titleTh'] != null) s['titleTh'] as String,
+      if (s['authorTh'] != null) s['authorTh'] as String,
+      if (s['yearBe'] != null) 'พ.ศ. ${s['yearBe']}',
+      if (s['locator'] != null) s['locator'] as String,
+    ];
+    return TaksaEntry(
+      bodyTh: json['bodyTh'] as String? ?? '',
+      summaryTh: json['summaryTh'] as String? ?? '',
+      contextNoteTh: json['contextNoteTh'] as String? ?? '',
+      sourceTh: parts.join(' · '),
+    );
+  }
+}

@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:nimit/core/router/app_router.dart';
+import 'package:nimit/data/models/library.dart';
 import 'package:nimit/data/models/lottery.dart';
 import 'package:nimit/data/providers.dart';
 import 'package:nimit/data/repositories/repositories.dart';
@@ -27,7 +28,7 @@ void main() {
   /// `Override` is not exported by flutter_riverpod, and adding a dependency to
   /// name a type in a test would be a poor trade.
   Future<void> pumpApp(WidgetTester tester,
-      {LotteryRepository? lottery}) async {
+      {LotteryRepository? lottery, LibraryRepository? library}) async {
     final prefs = await SharedPreferences.getInstance();
     await tester.pumpWidget(
       ProviderScope(
@@ -35,6 +36,8 @@ void main() {
           sharedPreferencesProvider.overrideWithValue(prefs),
           if (lottery != null)
             lotteryRepositoryProvider.overrideWithValue(lottery),
+          if (library != null)
+            libraryRepositoryProvider.overrideWithValue(library),
         ],
         child: const NimitApp(),
       ),
@@ -249,6 +252,50 @@ void main() {
     expect(find.textContaining('เดิมคุณบอกไว้แค่เดือน กรกฎาคม'), findsOneWidget);
     // And no lunar date is claimed, because a month alone cannot produce one.
     expect(find.textContaining('ตรงกับวันทางจันทรคติ'), findsNothing);
+  });
+
+  testWidgets('a ทักษา reading renders with its citation', (tester) async {
+    // The seeded readings are DRAFT — one copyrighted 1963 source, no second
+    // witness — so the shipped app shows the empty state. This proves the
+    // render path works the moment they are published, rather than leaving it
+    // untested until the day it matters.
+    tester.view.physicalSize = const Size(420, 2200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    // 29 ก.ค. 2569 is a Wednesday.
+    SharedPreferences.setMockInitialValues(
+        {'nimit.birth.v2': '{"date":"2026-07-29"}'});
+    await pumpApp(tester, library: _StubLibrary());
+    appRouter.go('/fortune');
+    await tester.pumpAndSettle();
+
+    // Summary and body are separately present, asserted on text unique to each.
+    expect(find.textContaining('ขยันและรู้งานรอบด้าน'), findsOneWidget);
+    expect(find.textContaining('ให้นามประจำวันพุธว่า'), findsOneWidget);
+    // A reading may never appear without a source line.
+    expect(find.textContaining('ที่มา: พรหมชาติ'), findsOneWidget);
+    expect(find.textContaining('พ.ศ. 2506'), findsOneWidget);
+    // And the empty state must be gone.
+    expect(find.text('ยังไม่มีตำราในคลังที่ทำนายจากวันเดือนปีเกิด'), findsNothing);
+  });
+
+  testWidgets('no published reading shows the honest empty state, not an error',
+      (tester) async {
+    tester.view.physicalSize = const Size(420, 2200);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    // The default mock returns an empty reading list, which is the real
+    // current state. It must read as "no source yet", never as a failure.
+    SharedPreferences.setMockInitialValues(
+        {'nimit.birth.v2': '{"date":"2026-07-29"}'});
+    await pumpApp(tester);
+    appRouter.go('/fortune');
+    await tester.pumpAndSettle();
+
+    expect(find.text('ยังไม่มีตำราในคลังที่ทำนายจากวันเดือนปีเกิด'), findsOneWidget);
+    expect(find.textContaining('ยังโหลดคำทำนายไม่ได้'), findsNothing);
   });
 
   testWidgets('the date picker survives a 360 px phone', (tester) async {
@@ -522,4 +569,26 @@ class _FixtureLotteryRepository implements LotteryRepository {
     neverSeenLast2: 100,
     noteTh: 'ทดสอบ',
   );
+}
+
+/// Serves one Wednesday reading so the populated render path is covered.
+class _StubLibrary implements LibraryRepository {
+  @override
+  Future<TaksaReading> taksa(int weekday) async => const TaksaReading(
+        slug: 'born-wednesday',
+        nameTh: 'คนเกิดวันพุธ',
+        weekday: 3,
+        readings: [
+          TaksaEntry(
+            bodyTh: 'ตำราพรหมชาติให้นามประจำวันพุธว่า นามสุนัข ธาตุเถ้า',
+            summaryTh: 'ตำราเก่าว่าคนเกิดวันพุธ นามสุนัข ธาตุเถ้า ขยันและรู้งานรอบด้าน',
+            contextNoteTh: 'เป็นความเชื่อที่บันทึกไว้ในตำรา',
+            sourceTh: 'พรหมชาติ · สุนันท์ วิโรภาส · พ.ศ. 2506 · หน้า ๑๔–๑๗ หมวดคนเกิดวัน',
+          ),
+        ],
+      );
+
+  @override
+  Future<SymbolStory> story(String slug) =>
+      throw UnimplementedError('not used by this test');
 }
