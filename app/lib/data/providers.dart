@@ -25,8 +25,9 @@ final dreamRepositoryProvider =
 final trendsRepositoryProvider =
     Provider<TrendsRepository>((ref) => MockTrendsRepository());
 
-final fortuneRepositoryProvider =
-    Provider<FortuneRepository>((ref) => MockFortuneRepository());
+final birthProfileRepositoryProvider = Provider<BirthProfileRepository>(
+  (ref) => LocalBirthProfileRepository(ref.watch(sharedPreferencesProvider)),
+);
 
 final lotteryRepositoryProvider =
     Provider<LotteryRepository>((ref) => MockLotteryRepository());
@@ -94,10 +95,6 @@ final trendsProvider = FutureProvider<TrendsData>(
   (ref) => ref
       .watch(trendsRepositoryProvider)
       .fetch(ref.watch(trendsRegionProvider)),
-);
-
-final fortuneProvider = FutureProvider<FortuneData>(
-  (ref) => ref.watch(fortuneRepositoryProvider).fetch(),
 );
 
 final currentDrawProvider = FutureProvider<DrawInfo>(
@@ -310,3 +307,26 @@ class BudgetNotifier extends AsyncNotifier<BudgetState> {
 
 final budgetProvider =
     AsyncNotifierProvider<BudgetNotifier, BudgetState>(BudgetNotifier.new);
+
+/// Birth month. Never leaves the device; see [BirthProfile] for why it is only
+/// a month.
+class BirthProfileNotifier extends AsyncNotifier<BirthProfile> {
+  @override
+  Future<BirthProfile> build() =>
+      ref.watch(birthProfileRepositoryProvider).load();
+
+  Future<void> setMonth(int? month) async {
+    final next = BirthProfile(month: month);
+    await ref.read(birthProfileRepositoryProvider).save(next);
+    ref.invalidateSelf();
+  }
+
+  /// Deleting it must be as easy as setting it — the screen offers this, so a
+  /// user who changes their mind is not stuck with data they no longer want on
+  /// their phone.
+  Future<void> clear() => setMonth(null);
+}
+
+final birthProfileProvider =
+    AsyncNotifierProvider<BirthProfileNotifier, BirthProfile>(
+        BirthProfileNotifier.new);

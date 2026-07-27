@@ -1,6 +1,7 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nimit/data/local/local_repositories.dart';
 import 'package:nimit/data/models/dream.dart';
+import 'package:nimit/data/models/fortune.dart';
 import 'package:nimit/data/models/lottery.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
@@ -190,6 +191,60 @@ void main() {
       final all = await repo.all();
       expect(all.length, 1);
       expect(all.single.quantity, 5);
+    });
+  });
+
+  group('birth month', () {
+    test('starts unset, and unset is a working state', () async {
+      final prefs = await SharedPreferences.getInstance();
+      final profile = await LocalBirthProfileRepository(prefs).load();
+
+      expect(profile.month, isNull);
+      expect(profile.isSet, isFalse);
+    });
+
+    test('round-trips through storage', () async {
+      final prefs = await SharedPreferences.getInstance();
+      final repo = LocalBirthProfileRepository(prefs);
+
+      await repo.save(const BirthProfile(month: 7));
+
+      expect((await LocalBirthProfileRepository(prefs).load()).month, 7);
+    });
+
+    test('clearing removes the key, not just the value', () async {
+      // The privacy card promises 'ลบแล้วหายทันที'. A row left behind holding
+      // {"month": null} would still be birth data on the device, so the
+      // promise has to be true of the storage, not only of the screen.
+      final prefs = await SharedPreferences.getInstance();
+      final repo = LocalBirthProfileRepository(prefs);
+
+      await repo.save(const BirthProfile(month: 3));
+      await repo.save(const BirthProfile());
+
+      expect(prefs.getKeys().where((k) => k.contains('birth')), isEmpty);
+      expect((await repo.load()).month, isNull);
+    });
+
+    test('a corrupt payload reads as unset instead of throwing', () async {
+      SharedPreferences.setMockInitialValues(
+          {'nimit.birthmonth.v1': 'not json at all'});
+      final prefs = await SharedPreferences.getInstance();
+
+      expect((await LocalBirthProfileRepository(prefs).load()).month, isNull);
+    });
+
+    test('an out-of-range month reads as unset, never clamped', () async {
+      // Clamping 0 to January would show someone a reading for a month they
+      // were not born in — quietly wrong is worse than visibly empty.
+      for (final bad in [0, 13, -1, 99]) {
+        SharedPreferences.setMockInitialValues(
+            {'nimit.birthmonth.v1': '{"month": $bad}'});
+        final prefs = await SharedPreferences.getInstance();
+
+        expect((await LocalBirthProfileRepository(prefs).load()).month, isNull,
+            reason: 'month $bad should not resolve to a real month');
+      }
     });
   });
 }

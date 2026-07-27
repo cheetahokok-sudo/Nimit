@@ -171,6 +171,80 @@ void main() {
     expect(find.text('ตรวจหวยรัฐบาล'), findsOneWidget);
   });
 
+  testWidgets('ดวงของฉัน asks for a month and invents nothing', (tester) async {
+    // This screen used to render a ลัคนา, a badge claiming birth data was on
+    // file, four 'เลขประจำดวง' and a line of money advice — all constants in a
+    // mock, none of them backed by anything the user had ever entered. The
+    // assertions below are absence assertions on purpose: they fail the moment
+    // any of it is reintroduced.
+    tester.view.physicalSize = const Size(420, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await pumpApp(tester);
+    appRouter.go('/fortune');
+    await tester.pumpAndSettle();
+
+    expect(find.text('ดวงของฉัน'), findsOneWidget);
+    expect(find.text('เก็บไว้ในเครื่องนี้เท่านั้น'), findsOneWidget);
+    expect(find.text('มกราคม'), findsOneWidget);
+    expect(find.text('ธันวาคม'), findsOneWidget);
+
+    expect(find.textContaining('ลัคนา'), findsNothing);
+    expect(find.textContaining('ข้อมูลเกิดครบ'), findsNothing);
+    expect(find.textContaining('เลขประจำดวง'), findsNothing);
+
+    // Nothing chosen yet, so no reading section exists to be read.
+    expect(find.textContaining('เดือนเกิด: '), findsNothing);
+  });
+
+  testWidgets('choosing a month persists it and stays honest about readings',
+      (tester) async {
+    tester.view.physicalSize = const Size(420, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await pumpApp(tester);
+    appRouter.go('/fortune');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('กรกฎาคม'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('เดือนเกิด: กรกฎาคม'), findsOneWidget);
+    // The reading is empty and says so, rather than filling the space.
+    expect(find.text('ยังไม่มีในคลังตำรา'), findsOneWidget);
+
+    final prefs = await SharedPreferences.getInstance();
+    expect(prefs.getString('nimit.birthmonth.v1'), contains('7'));
+
+    // Deleting is offered on the same screen and actually clears storage.
+    await tester.tap(find.text('ลบเดือนเกิดออกจากเครื่อง'));
+    await tester.pumpAndSettle();
+
+    expect(find.text('เดือนเกิด: กรกฎาคม'), findsNothing);
+    expect(prefs.getString('nimit.birthmonth.v1'), isNull);
+  });
+
+  testWidgets('ดวง month grid survives a 360 px phone', (tester) async {
+    // Three fixed columns with the longest month names in Thai (พฤศจิกายน,
+    // กุมภาพันธ์) is exactly the layout that overflows on a cheap handset,
+    // which is most of this audience's hardware.
+    tester.view.physicalSize = const Size(360, 780);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await pumpApp(tester);
+    appRouter.go('/fortune');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('พฤศจิกายน'));
+    await tester.pumpAndSettle();
+
+    expect(tester.takeException(), isNull);
+    expect(find.text('เดือนเกิด: พฤศจิกายน'), findsOneWidget);
+  });
+
   testWidgets('กระแสปีนี้ shows real draws joined to ตำรา meaning',
       (tester) async {
     // The screen this replaced shipped invented "community mention" counts to

@@ -29,8 +29,13 @@ abstract interface class TrendsRepository {
   Future<TrendsData> fetch(String regionTh);
 }
 
-abstract interface class FortuneRepository {
-  Future<FortuneData> fetch();
+/// Birth month, on device only.
+///
+/// No remote counterpart exists on purpose: an interface with a Postgrest
+/// implementation would be an invitation to transmit it later.
+abstract interface class BirthProfileRepository {
+  Future<BirthProfile> load();
+  Future<void> save(BirthProfile profile);
 }
 
 /// Official draw results. Facts only.

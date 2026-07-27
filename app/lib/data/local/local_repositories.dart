@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../models/dream.dart';
+import '../models/fortune.dart';
 import '../models/lottery.dart';
 import '../repositories/repositories.dart';
 
@@ -160,5 +161,43 @@ class LocalBudgetRepository implements BudgetRepository {
   @override
   Future<void> update(BudgetState state) async {
     await _prefs.setString(_key, jsonEncode(state.toJson()));
+  }
+}
+
+/// Birth month, on this device and nowhere else.
+///
+/// Deliberately its own tiny repository rather than a field on some larger
+/// settings blob: keeping it separate makes it obvious in a privacy review
+/// exactly what birth information the app holds, and a `grep` for this key
+/// finds every place it is touched.
+class LocalBirthProfileRepository implements BirthProfileRepository {
+  LocalBirthProfileRepository(this._prefs);
+
+  static const _key = 'nimit.birthmonth.v1';
+  final SharedPreferences _prefs;
+
+  @override
+  Future<BirthProfile> load() async {
+    final raw = _prefs.getString(_key);
+    if (raw == null) return const BirthProfile();
+    try {
+      final decoded = jsonDecode(raw);
+      if (decoded is! Map<String, dynamic>) return const BirthProfile();
+      return BirthProfile.fromJson(decoded);
+    } catch (_) {
+      // Same policy as the journal and budget: corrupt storage reads as empty
+      // rather than throwing, because a throw here would also break every
+      // future save.
+      return const BirthProfile();
+    }
+  }
+
+  @override
+  Future<void> save(BirthProfile profile) async {
+    if (!profile.isSet) {
+      await _prefs.remove(_key);
+      return;
+    }
+    await _prefs.setString(_key, jsonEncode(profile.toJson()));
   }
 }

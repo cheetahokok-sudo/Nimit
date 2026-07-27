@@ -1,6 +1,5 @@
 import '../../core/utils/thai_date.dart';
 import '../models/dream.dart';
-import '../models/fortune.dart';
 import '../models/library.dart';
 import '../models/lottery.dart';
 import '../models/source.dart';
@@ -80,32 +79,6 @@ class MockTrendsRepository implements TrendsRepository {
       story: CommunityStory(
         quoteTh: '“คุณแม่ 3 คนในเชียงใหม่ฝันเห็นน้ำเหมือนกัน”',
       ),
-    );
-  }
-}
-
-class MockFortuneRepository implements FortuneRepository {
-  @override
-  Future<FortuneData> fetch() async {
-    await Future<void>.delayed(_latency);
-    return const FortuneData(
-      lagnaTh: 'ลัคนาเมษ',
-      monthThemeTh: 'เดือนนี้: เริ่มสิ่งใหม่อย่างมีแผน',
-      profileCompleteTh: 'ข้อมูลเกิดครบแล้ว',
-      monthlyNumbers: ['4', '14', '41', '149'],
-      sourceCards: [
-        FortuneSourceCard(
-          tier: SourceTier.a2,
-          titleTh: 'ฉบับตรวจชำระโดยสถาบัน',
-          bodyTh: 'จักรทีปนี • ดาวอังคาร • ลัคนาและเรือน',
-        ),
-        FortuneSourceCard(
-          tier: SourceTier.b1,
-          titleTh: 'การวิเคราะห์เชิงวิชาการ',
-          bodyTh: 'อธิบายความต่างระหว่างสำนัก ไม่รวมเป็นคำตอบเดียว',
-        ),
-      ],
-      dailyAdviceTh: 'ทบทวนเป้าหมายการเงินก่อนตัดสินใจจากอารมณ์',
     );
   }
 }
