@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<!--
+  App-level privacy manifest.
+
+  This file is the machine-readable form of the promise the ดวง screen makes
+  in Thai: birth data stays on the device. The app collects nothing, tracks
+  nothing, and calls no tracking domains. Its only network traffic is
+  anonymous reads of the ตำรา library and official GLO lottery results —
+  no user identifier, no user content, no ticket number, no birth date ever
+  leaves the phone.
+
+  UserDefaults (via shared_preferences) is accessed for the user's OWN local
+  data — journal, saved tickets, budget, birth date. CA92.1 is the declared
+  reason: access from the app itself, to store app state. The plugin ships
+  its own manifest; this one covers the app target.
+-->
+<dict>
+	<key>NSPrivacyTracking</key>
+	<false/>
+	<key>NSPrivacyTrackingDomains</key>
+	<array/>
+	<key>NSPrivacyCollectedDataTypes</key>
+	<array/>
+	<key>NSPrivacyAccessedAPITypes</key>
+	<array>
+		<dict>
+			<key>NSPrivacyAccessedAPIType</key>
+			<string>NSPrivacyAccessedAPICategoryUserDefaults</string>
+			<key>NSPrivacyAccessedAPITypeReasons</key>
+			<array>
+				<string>CA92.1</string>
+			</array>
+		</dict>
+	</array>
+</dict>
+</plist>

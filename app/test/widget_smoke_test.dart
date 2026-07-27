@@ -329,8 +329,11 @@ void main() {
       await tester.pumpAndSettle();
 
       final orb = tester.getRect(find.byType(CelestialOrb));
+      // By KEY, not text. The headline renders DateTime.now()'s lunar month,
+      // so finding it by 'เดือนแปดหลัง' worked only until 13 Aug 2026 — a test
+      // with an expiry date, set to fail long after anyone remembers why.
       final rects = <String, Rect>{
-        'headline': tester.getRect(find.text('เดือนแปดหลัง').first),
+        'headline': tester.getRect(find.byKey(const ValueKey('hero-month'))),
         'eyebrow': tester.getRect(find.text('วันนี้ทางจันทรคติ')),
       };
 

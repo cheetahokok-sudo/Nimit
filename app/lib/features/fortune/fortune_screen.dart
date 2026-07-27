@@ -244,6 +244,11 @@ class _HeroCard extends ConsumerWidget {
                                     fontWeight: FontWeight.w600)),
                             const SizedBox(height: 2),
                             Text(monthName,
+                                // Keyed for tests: the content is
+                                // DateTime.now()'s lunar month, so any test
+                                // that found this by TEXT would break the day
+                                // the month turns.
+                                key: const ValueKey('hero-month'),
                                 style: textTheme.headlineSmall!.copyWith(
                                   color: NimitColors.onDark,
                                   fontWeight: FontWeight.w800,

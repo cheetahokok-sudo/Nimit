@@ -3,7 +3,6 @@ import '../models/fortune.dart';
 import '../models/library.dart';
 import '../models/lottery.dart';
 import '../models/source.dart';
-import '../models/trends.dart';
 
 /// Abstract data-access contracts. Mock implementations back the scaffold;
 /// a Supabase (or other) backend can replace them via provider overrides
@@ -23,10 +22,6 @@ abstract interface class DreamRepository {
   // remote implementation of this method was returning four invented constants
   // to a screen that told users they came from their saved symbols. It is now
   // computed from real entries in todaysNumbersProvider.
-}
-
-abstract interface class TrendsRepository {
-  Future<TrendsData> fetch(String regionTh);
 }
 
 /// Birth month, on device only.

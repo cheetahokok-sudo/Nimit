@@ -9,7 +9,6 @@ import 'models/fortune.dart';
 import 'models/library.dart';
 import 'models/lottery.dart';
 import 'models/source.dart';
-import 'models/trends.dart';
 import 'repositories/repositories.dart';
 
 /// Overridden in main() with the real instance before runApp.
@@ -21,9 +20,6 @@ final sharedPreferencesProvider = Provider<SharedPreferences>(
 
 final dreamRepositoryProvider =
     Provider<DreamRepository>((ref) => MockDreamRepository());
-
-final trendsRepositoryProvider =
-    Provider<TrendsRepository>((ref) => MockTrendsRepository());
 
 final birthProfileRepositoryProvider = Provider<BirthProfileRepository>(
   (ref) => LocalBirthProfileRepository(ref.watch(sharedPreferencesProvider)),
@@ -80,22 +76,6 @@ final todaysNumbersProvider = FutureProvider<List<String>>((ref) async {
   }
   return seen.toList();
 });
-
-class TrendsRegionNotifier extends Notifier<String> {
-  @override
-  String build() => 'ทั่วประเทศไทย';
-
-  void select(String regionTh) => state = regionTh;
-}
-
-final trendsRegionProvider =
-    NotifierProvider<TrendsRegionNotifier, String>(TrendsRegionNotifier.new);
-
-final trendsProvider = FutureProvider<TrendsData>(
-  (ref) => ref
-      .watch(trendsRepositoryProvider)
-      .fetch(ref.watch(trendsRegionProvider)),
-);
 
 final currentDrawProvider = FutureProvider<DrawInfo>(
   (ref) => ref.watch(lotteryRepositoryProvider).currentDraw(),

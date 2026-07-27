@@ -1,0 +1,101 @@
+# ============================================================================
+# Codemagic — iOS build and TestFlight delivery for นิมิต.
+#
+# ONE NON-NEGOTIABLE IN THIS FILE. The app defaults to mock repositories, and
+# a release built without the remote dart-defines ships demo lottery data on a
+# money screen — a fixture draw labelled (ตัวอย่าง), presented on real phones
+# to real players. The guard step fails the build outright if the backend
+# variables are missing, because that binary must not be buildable by
+# accident, only refusable on purpose.
+#
+# SETUP REQUIRED IN THE CODEMAGIC UI (once):
+#   * App Store Connect integration named `nimit_asc` — an ASC API key with
+#     App Manager role. Used for signing AND TestFlight upload.
+#   * Environment group `nimit_backend` holding:
+#       NIMIT_REMOTE        true
+#       SUPABASE_URL        https://<project>.supabase.co
+#       SUPABASE_ANON_KEY   <publishable anon key — safe in a client binary;
+#                            RLS and the api schema grants are the boundary>
+#   * Bundle id app.nimit.nimit registered in the developer portal, and the
+#     app record created in App Store Connect.
+#
+# The anon key is public by design (it ships inside every client). It still
+# lives in a variable group rather than this file so rotating it is a UI
+# change, not a commit.
+# ============================================================================
+
+workflows:
+  ios-testflight:
+    name: iOS · test, build, TestFlight
+    instance_type: mac_mini_m2
+    max_build_duration: 60
+
+    integrations:
+      app_store_connect: nimit_asc
+
+    environment:
+      groups:
+        - nimit_backend
+      flutter: 3.44.2          # pinned to the version the suite is green on
+      xcode: latest
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: app.nimit.nimit
+      vars:
+        APP_DIR: app
+
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'ios-v*'    # deliberate releases only — a tag is an act,
+          include: true        # a push to main is not
+
+    scripts:
+      - name: Guard — refuse a mock-data store binary
+        script: |
+          set -e
+          if [ "$NIMIT_REMOTE" != "true" ] || [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "FATAL: backend variables missing (group nimit_backend)."
+            echo "A binary built without them ships demo lottery results to real users."
+            exit 1
+          fi
+
+      - name: Guard — no privileged key in the app tree
+        script: |
+          set -e
+          if grep -ri --include='*.dart' --include='*.yaml' --include='*.plist' \
+               -e 'service_role' -e 'SUPABASE_SERVICE' "$APP_DIR"; then
+            echo "FATAL: privileged key material referenced in the app tree."
+            exit 1
+          fi
+
+      - name: Analyze and test
+        working_directory: app
+        script: |
+          set -e
+          flutter pub get
+          flutter analyze
+          flutter test
+
+      - name: Build signed IPA
+        working_directory: app
+        script: |
+          set -e
+          flutter build ipa --release \
+            --build-number=$BUILD_NUMBER \
+            --export-options-plist=/Users/builder/export_options.plist \
+            --dart-define=NIMIT_REMOTE=$NIMIT_REMOTE \
+            --dart-define=SUPABASE_URL=$SUPABASE_URL \
+            --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+
+    artifacts:
+      - app/build/ios/ipa/*.ipa
+      - /tmp/xcodebuild_logs/*.log
+
+    publishing:
+      app_store_connect:
+        auth: integrations
+        submit_to_testflight: true
+        # App Store submission stays manual: TestFlight is for finding out
+        # what a first Thai user actually experiences before review does.

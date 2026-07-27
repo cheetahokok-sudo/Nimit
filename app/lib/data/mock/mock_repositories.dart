@@ -3,7 +3,6 @@ import '../models/dream.dart';
 import '../models/library.dart';
 import '../models/lottery.dart';
 import '../models/source.dart';
-import '../models/trends.dart';
 import '../repositories/repositories.dart';
 
 /// Seeded with the exact content of the v2 UI board so the scaffold demos
@@ -58,29 +57,6 @@ class MockDreamRepository implements DreamRepository {
     );
   }
 
-}
-
-class MockTrendsRepository implements TrendsRepository {
-  @override
-  Future<TrendsData> fetch(String regionTh) async {
-    await Future<void>.delayed(_latency);
-    return const TrendsData(
-      hotSymbol: TrendingSymbol(
-        nameTh: 'นกขาว',
-        changePercent: 38,
-        noteTh: 'ข้อมูลจากโพสต์สาธารณะและการค้นหาในแอป',
-      ),
-      mentions: [
-        NumberMention(number: '16', count: 92),
-        NumberMention(number: '29', count: 74),
-        NumberMention(number: '68', count: 61),
-        NumberMention(number: '61', count: 49),
-      ],
-      story: CommunityStory(
-        quoteTh: '“คุณแม่ 3 คนในเชียงใหม่ฝันเห็นน้ำเหมือนกัน”',
-      ),
-    );
-  }
 }
 
 /// Demo draw used before a Supabase connection is configured.
