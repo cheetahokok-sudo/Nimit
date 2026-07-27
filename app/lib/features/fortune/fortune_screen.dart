@@ -384,13 +384,13 @@ class _LunarResult extends StatelessWidget {
                   style: textTheme.labelMedium!
                       .copyWith(color: NimitColors.gold)),
               const SizedBox(height: 8),
+              // The headline, and only the headline. The year type lives in
+              // the fact list below with the other lookup keys — printing it
+              // in both places is the kind of duplication that drifts apart
+              // the first time one of them is edited.
               Text(birth.lunarDateTh,
                   style: textTheme.headlineSmall!.copyWith(
                       color: NimitColors.onDark, fontWeight: FontWeight.w800)),
-              const SizedBox(height: 10),
-              Text(birth.yearTypeTh,
-                  style: textTheme.bodyMedium!
-                      .copyWith(color: NimitColors.onDarkSoft)),
             ],
           ),
         ),
@@ -401,27 +401,92 @@ class _LunarResult extends StatelessWidget {
               style: textTheme.bodyMedium!
                   .copyWith(color: NimitColors.ink, height: 1.55)),
         ),
-        const SizedBox(height: 16),
-        const SectionHeader('คำทำนายตามเดือนเกิด'),
+        const SizedBox(height: 18),
+
+        // The three keys a ตำรา reading is looked up by. All computed, none
+        // invented — วันเกิด is arithmetic, เดือน comes from the conversion
+        // above, and ปีนักษัตร carries its own reckoning note because the
+        // conventions genuinely disagree for early-year births.
+        const SectionHeader('สิ่งที่คำนวณได้จากวันเกิด',
+            caption: 'เป็นการเทียบปฏิทิน ไม่ใช่คำทำนาย'),
+        const SizedBox(height: 10),
+        _FactRow(label: 'วันเกิด', value: birth.weekdayTh),
+        _FactRow(label: 'เดือนทางจันทรคติ', value: birth.monthNameTh),
+        _FactRow(
+          label: 'ปีนักษัตร',
+          value: 'ปี${birth.zodiacYearTh}',
+          note: birth.zodiacIsBoundarySensitive ? birth.zodiacNoteTh : null,
+        ),
+        _FactRow(label: 'ชนิดของปี', value: birth.yearTypeTh),
+
+        const SizedBox(height: 18),
+        const SectionHeader('คำทำนายตามตำรา'),
         const SizedBox(height: 10),
         SectionCard(
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Text('ยังไม่มีในคลังตำรา',
+              Text('ยังไม่มีตำราในคลังที่ทำนายจากวันเดือนปีเกิด',
                   style: textTheme.titleSmall!
                       .copyWith(fontWeight: FontWeight.w700)),
               const SizedBox(height: 8),
               Text(
-                  'ตอนนี้แอปบอกได้ว่าคุณเกิดตรงกับเดือนไทยเดือนไหน '
-                  'ซึ่งเป็นการเทียบปฏิทิน ไม่ใช่คำทำนาย '
-                  'ส่วนคำทำนายตามเดือนเกิดยังไม่มีตำราเล่มไหนในคลังที่อ้างอิงได้ '
-                  'เมื่อไหร่ที่ได้มา หน้านี้จะขึ้นให้อ่านทันที',
+                  'ข้างบนคือสิ่งที่คำนวณได้จริง ตรวจสอบกับปฏิทินได้ทุกบรรทัด '
+                  'ส่วนคำทำนายต้องมีตำราที่อ้างอิงได้ก่อน นิมิตจะไม่แต่งขึ้นเอง '
+                  'เมื่อได้ตำรามาแล้ว คำทำนายจะขึ้นตรงนี้พร้อมบอกว่ามาจากเล่มไหน หน้าไหน',
                   style: textTheme.bodyMedium!.copyWith(height: 1.6)),
             ],
           ),
         ),
       ],
+    );
+  }
+}
+
+/// One computed fact: label, value, and an optional caveat underneath.
+class _FactRow extends StatelessWidget {
+  const _FactRow({required this.label, required this.value, this.note});
+
+  final String label;
+  final String value;
+  final String? note;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return Padding(
+      padding: const EdgeInsets.only(bottom: 8),
+      child: SectionCard(
+        padding: const EdgeInsets.fromLTRB(16, 12, 16, 12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Expanded(
+                  child: Text(label,
+                      style: textTheme.bodyMedium!
+                          .copyWith(color: NimitColors.inkSoft)),
+                ),
+                const SizedBox(width: 12),
+                Flexible(
+                  child: Text(value,
+                      textAlign: TextAlign.end,
+                      style: textTheme.titleSmall!
+                          .copyWith(fontWeight: FontWeight.w800)),
+                ),
+              ],
+            ),
+            if (note != null) ...[
+              const SizedBox(height: 6),
+              Text(note!,
+                  style: textTheme.bodySmall!
+                      .copyWith(color: NimitColors.inkSoft, height: 1.45)),
+            ],
+          ],
+        ),
+      ),
     );
   }
 }

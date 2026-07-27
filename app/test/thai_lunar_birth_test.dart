@@ -178,4 +178,57 @@ void main() {
       expect(r.isAdhikawanYear, isFalse);
     });
   });
+
+  group('derived facts', () {
+    test('วันเกิด is the real weekday', () {
+      // 29 ก.ค. 2569 was a Wednesday.
+      expect(service.convert(DateTime(2026, 7, 29)).weekdayTh, 'วันพุธ');
+      expect(service.convert(DateTime(2026, 7, 30)).weekdayTh, 'วันพฤหัสบดี');
+      expect(service.convert(DateTime(2026, 8, 2)).weekdayTh, 'วันอาทิตย์');
+    });
+
+    test('วันเกิด honours the dawn boundary, which is the point of it', () {
+      // A 03:00 Monday birth is a Sunday birth in Thai reckoning. This is the
+      // payoff for making the boundary policy explicit instead of assuming one
+      // — the weekday is what ทักษา keys on, so getting it wrong would poison
+      // every future reading built on it.
+      final monday = DateTime(2026, 7, 27, 3);
+      expect(service.convert(monday).weekdayTh, 'วันจันทร์');
+      expect(
+        service
+            .convert(monday,
+                boundaryPolicy: BirthDayBoundaryPolicy.thaiDawnApproximation)
+            .weekdayTh,
+        'วันอาทิตย์',
+      );
+    });
+
+    test('ปีนักษัตร matches known years', () {
+      // พ.ศ. 2569 is ปีมะเมีย, 2568 ปีมะเส็ง, 2567 ปีมะโรง.
+      expect(service.convert(DateTime(2026, 7, 29)).zodiacYearTh, 'มะเมีย');
+      expect(service.convert(DateTime(2025, 7, 10)).zodiacYearTh, 'มะเส็ง');
+      expect(service.convert(DateTime(2024, 7, 10)).zodiacYearTh, 'มะโรง');
+    });
+
+    test('ปีนักษัตร cycles through all twelve without repeating', () {
+      final seen = <String>[];
+      for (var y = 2015; y < 2027; y++) {
+        seen.add(service.convert(DateTime(y, 7, 10)).zodiacYearTh);
+      }
+      expect(seen.toSet().length, 12, reason: '\$seen');
+    });
+
+    test('an early-year birth is flagged as reckoning-sensitive', () {
+      // The royal calendar turns the นักษัตร year at สงกรานต์, traditional
+      // lunar reckoning at the lunar year. They disagree for Jan-Apr births, so
+      // the screen must not present one answer as the answer.
+      final early = service.convert(DateTime(2000, 2, 10));
+      expect(early.zodiacIsBoundarySensitive, isTrue);
+      expect(early.zodiacNoteTh, contains('สงกรานต์'));
+
+      final midYear = service.convert(DateTime(2000, 8, 10));
+      expect(midYear.zodiacIsBoundarySensitive, isFalse);
+      expect(midYear.zodiacNoteTh, isNot(contains('สงกรานต์')));
+    });
+  });
 }

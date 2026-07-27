@@ -108,6 +108,66 @@ class ThaiLunarBirth {
   String get lunarDateTh =>
       '$phaseTh ${lunar.day} ค่ำ $monthNameTh พ.ศ. ${lunar.beYear}';
 
+  static const _weekdayNames = <String>[
+    'วันจันทร์',
+    'วันอังคาร',
+    'วันพุธ',
+    'วันพฤหัสบดี',
+    'วันศุกร์',
+    'วันเสาร์',
+    'วันอาทิตย์',
+  ];
+
+  /// วันเกิด — the day of the week.
+  ///
+  /// Read off [effectiveCivilDate], not the entered date, so it honours the
+  /// dawn boundary: under that policy a 03:00 Monday birth is a Sunday birth,
+  /// which is the whole reason Thai reckoning has the rule. This is the payoff
+  /// for making the policy explicit rather than assuming one.
+  ///
+  /// A pure calendar fact — no convention, no source needed. It matters because
+  /// Thai divination overwhelmingly keys on วันเกิด (ทักษา) rather than on the
+  /// month, so any future reading will want it.
+  String get weekdayTh => _weekdayNames[effectiveCivilDate.weekday - 1];
+
+  static const _zodiacNames = <String>[
+    'ชวด',
+    'ฉลู',
+    'ขาล',
+    'เถาะ',
+    'มะโรง',
+    'มะเส็ง',
+    'มะเมีย',
+    'มะแม',
+    'วอก',
+    'ระกา',
+    'จอ',
+    'กุน',
+  ];
+
+  /// ปีนักษัตร, reckoned on the LUNAR year.
+  ///
+  /// CONVENTION, STATED BECAUSE IT IS CONTESTED. Thai practice does not agree
+  /// on when the นักษัตร year turns: the royal/official calendar changes it at
+  /// สงกรานต์, while traditional lunar reckoning changes it with the lunar
+  /// year. This uses [ThaiLunarDate.beYear] — the lunar year the package
+  /// computed — so the boundary is at least internally consistent with the
+  /// month shown beside it.
+  ///
+  /// For a birth in January–April the two conventions disagree, which is why
+  /// [zodiacNoteTh] says so on screen instead of presenting one answer as the
+  /// answer. A ตำรา that specifies its own reckoning would override this.
+  String get zodiacYearTh => _zodiacNames[(lunar.beYear + 5) % 12];
+
+  /// True when the two นักษัตร reckonings can disagree for this birth.
+  bool get zodiacIsBoundarySensitive =>
+      effectiveCivilDate.month >= 1 && effectiveCivilDate.month <= 4;
+
+  String get zodiacNoteTh => zodiacIsBoundarySensitive
+      ? 'นับปีนักษัตรตามปีจันทรคติ ถ้านับแบบเปลี่ยนปีที่สงกรานต์อาจได้คนละปีนักษัตร '
+          'เพราะคุณเกิดต้นปี'
+      : 'นับปีนักษัตรตามปีจันทรคติ';
+
   String get boundaryNoteTh => switch (boundaryPolicy) {
         BirthDayBoundaryPolicy.civilDate => 'นับตามวันที่ในปฏิทินที่กรอกไว้',
         BirthDayBoundaryPolicy.thaiDawnApproximation =>

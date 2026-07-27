@@ -221,11 +221,14 @@ void main() {
 
     expect(find.text('ขึ้น 15 ค่ำ เดือนแปดหลัง พ.ศ. 2569'), findsOneWidget);
     expect(find.text('อธิกมาส · ปกติวาร'), findsOneWidget);
+    // The computed lookup keys a future ตำรา reading will be found by.
+    expect(find.text('วันพุธ'), findsOneWidget);
+    expect(find.text('ปีมะเมีย'), findsOneWidget);
     // เดือนแปดหลัง is the one thing a user cannot work out unaided.
     expect(find.textContaining('ไม่ใช่เดือนเก้า'), findsOneWidget);
 
     // A calendar conversion is shown; a prediction is not.
-    expect(find.text('ยังไม่มีในคลังตำรา'), findsOneWidget);
+    expect(find.text('ยังไม่มีตำราในคลังที่ทำนายจากวันเดือนปีเกิด'), findsOneWidget);
     expect(find.text('ลบวันเกิดออกจากเครื่อง'), findsOneWidget);
   });
 
