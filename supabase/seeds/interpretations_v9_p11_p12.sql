@@ -144,6 +144,38 @@ cross join p cross join tr
 where not exists (select 1 from content.interpretation i
                    where i.symbol_id = s.id and i.passage_id = (select id from p));
 
+-- ---------------------------------------------------------------------------
+-- Did the readings actually attach?
+--
+-- Both inserts above join `content.symbol ... and s.status = 'published'`. If
+-- the lexicon file that creates those symbols has not been applied, the join
+-- matches nothing, no error is raised, and the closing count still looks
+-- healthy — the reading is simply gone. Assert per passage instead.
+-- ---------------------------------------------------------------------------
+do $$
+declare got int;
+begin
+  select count(*) into got from content.interpretation i
+    join content.passage p on p.id = i.passage_id
+    join content.edition e on e.id = p.edition_id
+   where e.citekey = 'nlt-6238-2477' and p.sequence = 11
+     and i.status = 'published';
+  if got <> 7 then
+    raise exception 'content set 7: หน้า ๑๑ expected 7 readings, found % '
+      '(run dream_symbols_v7_p11_p12.sql first)', got;
+  end if;
+
+  select count(*) into got from content.interpretation i
+    join content.passage p on p.id = i.passage_id
+    join content.edition e on e.id = p.edition_id
+   where e.citekey = 'nlt-6238-2477' and p.sequence = 12
+     and i.status = 'published';
+  if got <> 8 then
+    raise exception 'content set 7: หน้า ๑๒ expected 8 readings, found % '
+      '(run dream_symbols_v7_p11_p12.sql first)', got;
+  end if;
+end $$;
+
 do $$
 declare r record; bad int := 0;
 begin

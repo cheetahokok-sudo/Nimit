@@ -78,4 +78,38 @@ from (values
 join content.symbol s on s.concept_key = v.concept_key
 on conflict (symbol_id, term) do nothing;
 
+-- ---------------------------------------------------------------------------
+-- Did this file actually do what it says?
+--
+-- A total row count cannot answer that. Every insert here joins another table
+-- (`content.category`, `content.symbol`), and in Postgres a join that matches
+-- nothing is not an error — it is zero rows, silently. A seed can therefore
+-- insert none of its content and still print a reassuring number, which is
+-- exactly what made the ๑๑–๑๒ set impossible to verify from its own output.
+--
+-- So assert the intent, not the total. Scoped by concept_key, so it stays true
+-- on a re-run.
+-- ---------------------------------------------------------------------------
+do $$
+declare got int;
+begin
+  select count(*) into got from content.symbol
+   where concept_key in ('DREAM_DAY_SUN','DREAM_DAY_MON','DREAM_DAY_TUE',
+     'DREAM_DAY_WED','DREAM_DAY_THU','DREAM_DAY_FRI','DREAM_DAY_SAT',
+     'DREAM_EXCREMENT','DREAM_LIQUOR','DREAM_CORPSE','DREAM_SILK','DREAM_FISHING')
+     and status = 'published';
+  if got <> 12 then
+    raise exception 'lexicon v7: expected 12 published symbols, found %', got;
+  end if;
+
+  select count(*) into got from content.symbol_term t
+    join content.symbol s on s.id = t.symbol_id
+   where s.concept_key like 'DREAM_DAY_%'
+      or s.concept_key in ('DREAM_EXCREMENT','DREAM_LIQUOR','DREAM_CORPSE',
+                           'DREAM_SILK','DREAM_FISHING');
+  if got <> 29 then
+    raise exception 'lexicon v7: expected 29 search terms, found %', got;
+  end if;
+end $$;
+
 select count(*) as published_symbols from content.symbol where status = 'published';

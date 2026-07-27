@@ -102,6 +102,24 @@ cross join p cross join tr
 where not exists (select 1 from content.interpretation i
                    where i.symbol_id = s.id and i.passage_id = (select id from p));
 
+-- This file creates its own two symbols, so it cannot half-land the way the
+-- ๑๑–๑๒ set could — but assert anyway, because a seed whose output you have to
+-- reason about is a seed you cannot trust at a glance. DREAM_EATING and
+-- DREAM_RING come from dream_symbols_v1.sql; if those were ever renamed, this
+-- is where it surfaces.
+do $$
+declare got int;
+begin
+  select count(*) into got from content.interpretation i
+    join content.passage p on p.id = i.passage_id
+    join content.edition e on e.id = p.edition_id
+   where e.citekey = 'nlt-6238-2477' and p.sequence = 13
+     and i.status = 'published';
+  if got <> 4 then
+    raise exception 'content set 8: หน้า ๑๓ expected 4 readings, found %', got;
+  end if;
+end $$;
+
 do $$
 declare r record; bad int := 0;
 begin
