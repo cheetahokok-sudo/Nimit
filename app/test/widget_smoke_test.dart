@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:nimit/core/router/app_router.dart';
+import 'package:nimit/core/widgets/section.dart' show DarkCard;
 import 'package:nimit/data/models/library.dart';
 import 'package:nimit/data/models/lottery.dart';
 import 'package:nimit/data/providers.dart';
@@ -473,6 +474,46 @@ void main() {
       }
     });
   }
+  testWidgets('สร้างการ์ดแชร์ has one working action, not four dead ones',
+      (tester) async {
+    // The screen used to offer LINE, TikTok, Facebook and บันทึก as four
+    // buttons that each raised "ยังไม่เปิดในเวอร์ชันทดลอง". Four placeholders is
+    // an App Store rejection under App Completeness, and it is the kind of
+    // thing that quietly comes back. This holds the shape: no stub copy, a real
+    // action, and the card wrapped so it can actually be rasterised.
+    tester.view.physicalSize = const Size(420, 1800);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    await pumpApp(tester);
+    appRouter.go('/dream/share');
+    await tester.pumpAndSettle();
+
+    expect(find.text('แชร์การ์ดนี้'), findsOneWidget);
+    expect(find.textContaining('ยังไม่เปิดในเวอร์ชันทดลอง'), findsNothing);
+    // The four destinations are named as guidance, not as fake controls.
+    expect(find.textContaining('LINE'), findsOneWidget);
+    // The capture boundary wraps exactly the DarkCard, so asserting on the card
+    // asserts what the shared PNG will contain. Asserting on RepaintBoundary
+    // itself proves nothing: Flutter inserts them throughout the tree, so
+    // find.byType matched a ListView's and every check passed vacuously.
+    expect(
+      find.descendant(
+        of: find.byType(DarkCard),
+        matching: find.text('เลขเชิงสัญลักษณ์'),
+      ),
+      findsOneWidget,
+    );
+    expect(
+      find.descendant(
+        of: find.byType(DarkCard),
+        matching: find.text('เลือกข้อมูลที่จะแสดง'),
+      ),
+      findsNothing,
+      reason: 'the settings below the card must not appear in the shared image',
+    );
+  });
+
   testWidgets('the hero writes its date in Thai numerals', (tester) async {
     // Asserted as "contains no ASCII digit" rather than against an expected
     // string, because the content is DateTime.now() and any literal would be

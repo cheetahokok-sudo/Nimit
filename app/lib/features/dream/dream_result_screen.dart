@@ -146,6 +146,36 @@ class _DreamResultScreenState extends ConsumerState<DreamResultScreen> {
                 'พบสัญลักษณ์ในคลัง แต่ยังไม่มีคำแปลที่ผ่านการตรวจสอบแหล่งที่มา — '
                 'นิมิตจะไม่แต่งคำแปลขึ้นเองโดยไม่มีตำรารองรับ'),
           ),
+        // NUMBERS BEFORE PROSE, and this is an audience decision rather than a
+        // hierarchy-of-truth one. The people this app is for look for the เลข
+        // first and read the ตำรา afterwards; burying the numbers under two
+        // sections of prose asked them to scroll past the thing they opened the
+        // screen for. Nothing about the claim changes by moving it — the
+        // caption still says these are symbolic, not odds, and they still come
+        // only from published number_association rows.
+        //
+        // The honest-absence line moves with it. A reader looking for numbers
+        // should learn there are none in the same place they would have found
+        // them, not after scrolling to the bottom to discover the section is
+        // missing.
+        if (analysis.numbers.isNotEmpty) ...[
+          const SectionHeader('เลขเชิงสัญลักษณ์',
+              caption: 'สร้างจากสัญลักษณ์ในฝัน ไม่ใช่โอกาสถูกรางวัล'),
+          const SizedBox(height: 10),
+          _WatchableNumbers(
+            numbers: analysis.numbers,
+            sourceTh: 'จากฝัน ${formatThaiDate(DateTime.now())}'
+                '${analysis.headlineTh.isEmpty ? '' : ' · ${analysis.headlineTh}'}',
+          ),
+          const SizedBox(height: 20),
+        ] else if (analysis.interpretations.isNotEmpty) ...[
+          // Honest absence: Buddhist canonical sources never map to numbers,
+          // so a canon-only result correctly has none — say so rather than
+          // showing an empty header.
+          const DisclaimerText(
+              'แหล่งที่อ้างอิงในผลนี้ไม่ผูกเลขกับสัญลักษณ์'),
+          const SizedBox(height: 16),
+        ],
         // ภาษาชาวบ้านก่อนเสมอ: the audience reads two lines, not paragraphs.
         // These are editorial compressions of the cited text below — same
         // review rules, same sources — never generated on the fly.
@@ -254,22 +284,6 @@ class _DreamResultScreenState extends ConsumerState<DreamResultScreen> {
           ),
           const SizedBox(height: 12),
         ],
-        const SizedBox(height: 6),
-        if (analysis.numbers.isNotEmpty) ...[
-          const SectionHeader('เลขเชิงสัญลักษณ์',
-              caption: 'สร้างจากสัญลักษณ์ในฝัน ไม่ใช่โอกาสถูกรางวัล'),
-          const SizedBox(height: 10),
-          _WatchableNumbers(
-            numbers: analysis.numbers,
-            sourceTh: 'จากฝัน ${formatThaiDate(DateTime.now())}'
-                '${analysis.headlineTh.isEmpty ? '' : ' · ${analysis.headlineTh}'}',
-          ),
-        ] else if (analysis.interpretations.isNotEmpty)
-          // Honest absence: Buddhist canonical sources never map to numbers,
-          // so a canon-only result correctly has none — say so rather than
-          // showing an empty header.
-          const DisclaimerText(
-              'แหล่งที่อ้างอิงในผลนี้ไม่ผูกเลขกับสัญลักษณ์'),
         const SizedBox(height: 22),
         Row(
           children: [

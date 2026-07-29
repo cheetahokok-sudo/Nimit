@@ -78,6 +78,27 @@ where i.status = 'published'
   -- copyrighted-work case, and one problem should produce one finding.
   and w.rights = 'public_domain';
 
+-- ── blocker: a published term the matcher can never reach ──────────────────
+-- analyze_dream refuses input shorter than content.dream_min_len(), so a term
+-- shorter than that floor can never be found: no input both contains it and
+-- clears the guard. The symbol looks curated and answers nothing.
+--
+-- This existed for months. The floor was four code points while thirty-six
+-- terms sat below it — งู, ไฟ, แมว, ม้า and the rest — and nothing said so,
+-- because a term that matches nothing produces silence rather than an error.
+insert into editorial.review_finding
+  (check_code, severity, message_th, detail)
+select 'term_below_match_floor', 'blocker',
+  'มีคำค้น ' || count(*) || ' คำที่สั้นกว่าความยาวขั้นต่ำที่ตัวจับคู่ยอมรับ '
+  || '(' || content.dream_min_len() || ' อักขระ) — ผู้ใช้พิมพ์คำเหล่านี้แล้วจะไม่มีวันเจอ',
+  jsonb_build_object('floor', content.dream_min_len(),
+                     'terms', jsonb_agg(distinct t.term_norm))
+from content.symbol_term t
+join content.symbol s on s.id = t.symbol_id
+where s.status = 'published'
+  and length(t.term_norm) < content.dream_min_len()
+having count(*) > 0;
+
 -- ── blocker: sensitive content published without recorded clearance ────────
 -- A CHECK constraint already makes this impossible to insert. The sweep exists
 -- because constraints can be dropped, and a silent drop is exactly the failure

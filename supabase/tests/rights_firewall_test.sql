@@ -492,8 +492,28 @@ select pg_temp.expect_eq(
 select pg_temp.section('9. analyze_dream — the core loop');
 -- ---------------------------------------------------------------------------
 
-select pg_temp.expect_fail($$select api.analyze_dream('งู')$$,
-  'analyze rejects too-short input');
+-- This assertion used to read expect_fail(analyze_dream('งู')) — it required
+-- the matcher to REJECT the Thai word for snake, and passed for months while
+-- doing it. The floor was four code points, งู is two, and the test agreed with
+-- the code instead of with the product. Thirty-six curated terms were
+-- unreachable behind it.
+--
+-- A test can only defend a boundary if the boundary is right. The floor is now
+-- the shortest curated term, so what must be rejected is input below THAT, and
+-- what must be accepted is every word the library actually holds.
+select pg_temp.expect_fail($$select api.analyze_dream('ก')$$,
+  'analyze rejects input below the shortest curated term');
+
+select pg_temp.expect_eq(
+  (select jsonb_array_length(api.analyze_dream('งู') -> 'symbols')), 1,
+  'a single short Thai word finds its symbol — งู is a dream, not a typo');
+
+select pg_temp.expect_eq(
+  (select count(*)::int from content.symbol_term t
+     join content.symbol s on s.id = t.symbol_id
+    where s.status = 'published'
+      and length(t.term_norm) < content.dream_min_len()), 0,
+  'no published term is shorter than the matcher will accept');
 
 select pg_temp.expect_eq(
   (select jsonb_array_length(api.analyze_dream('ประชุมเรื่องงบประมาณประจำปี') -> 'symbols')), 0,
