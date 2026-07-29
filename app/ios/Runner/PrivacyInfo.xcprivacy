@@ -6,10 +6,22 @@
 
   This file is the machine-readable form of the promise the ดวง screen makes
   in Thai: birth data stays on the device. The app collects nothing, tracks
-  nothing, and calls no tracking domains. Its only network traffic is
-  anonymous reads of the ตำรา library and official GLO lottery results —
-  no user identifier, no user content, no ticket number, no birth date ever
-  leaves the phone.
+  nothing, and calls no tracking domains.
+
+  What never leaves the phone: the birth date, the dream journal, saved ticket
+  numbers, the monthly budget. There is no account to attach them to and no
+  code that uploads them.
+
+  What does leave it, and must be stated plainly: the dream text typed on the
+  ความฝัน screen is sent to the content library to be matched against the ตำรา,
+  because the matching is done in SQL on the server. The request carries no
+  identifier — no account, no device id, no advertising id — and the server
+  keeps nothing: the miss log records the LENGTH of an unmatched dream and
+  never its text (migration 20260729001000, asserted by the SQL suite). Under
+  Apple's definition that is servicing a request in real time, not collection,
+  which is why NSPrivacyCollectedDataTypes below is empty. If the server ever
+  starts retaining that text, this file and the App Store privacy label are
+  both wrong the same day.
 
   UserDefaults (via shared_preferences) is accessed for the user's OWN local
   data — journal, saved tickets, budget, birth date. CA92.1 is the declared

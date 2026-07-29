@@ -519,6 +519,24 @@ select pg_temp.expect_eq(
   (select jsonb_array_length(api.analyze_dream('ประชุมเรื่องงบประมาณประจำปี') -> 'symbols')), 0,
   'analyze returns honest empty for text with no known symbols');
 
+-- The call above is a MISS, and the miss path is the one that used to write
+-- `left(norm_text, 40)` — the first forty characters of someone's dream — into
+-- a column named arg_digest. If that were still true, the sentence above would
+-- be sitting in ops.api_access right now, which is what this asserts it is not.
+-- The app's privacy label says no user data is collected; this is the check
+-- that makes that sentence true rather than merely intended.
+select pg_temp.expect_eq(
+  (select count(*)::int from ops.api_access
+    where fn = 'analyze_dream' and arg_digest like '%ประชุม%'), 0,
+  'no raw dream text reaches the log — not one syllable of a miss');
+
+select pg_temp.expect_eq(
+  (select count(*)::int from ops.api_access
+    where fn = 'analyze_dream'
+      and arg_digest like 'no_match:%'
+      and arg_digest !~ '^no_match:len:[0-9]+$'), 0,
+  'every logged miss is a length and nothing else');
+
 -- Snake was published by the earlier fixture, so it must be found; its
 -- interpretation count must mirror what is actually published (0 in the
 -- draft CI phase, real counts live) — same state-agnostic pattern as before.

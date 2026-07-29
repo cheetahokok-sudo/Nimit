@@ -36,7 +36,12 @@ workflows:
     environment:
       groups:
         - nimit_backend
-      flutter: 3.44.2          # pinned to the version the suite is green on
+      # Pinned to the version the suite is green on. If a macOS image cannot
+      # install this exact build the workflow fails in setup, which is the
+      # intended outcome: a silent drift to whatever `stable` means this week
+      # is worse than a fast, loud failure. Change it deliberately, and only
+      # after the suite is green on the new version locally.
+      flutter: 3.44.2
       xcode: latest
       ios_signing:
         distribution_type: app_store
@@ -78,6 +83,19 @@ workflows:
           flutter analyze
           flutter test
 
+      # `ios_signing` above fetches the certificate and provisioning profile and
+      # loads them into the keychain, but it does NOT write them into the Xcode
+      # project — that is this command's job, and it is also what generates the
+      # export_options.plist the build step reads. Without it the archive is
+      # unsigned and the build fails on a file that was never created. It runs
+      # after the test gate on purpose: no point signing a binary the suite has
+      # not cleared.
+      - name: Apply signing profiles to the Xcode project
+        working_directory: app
+        script: |
+          set -e
+          xcode-project use-profiles
+
       - name: Build signed IPA
         working_directory: app
         script: |
@@ -95,7 +113,7 @@ workflows:
 
     publishing:
       app_store_connect:
-        auth: integrations
+        auth: integration    # singular — the plural is not a valid value
         submit_to_testflight: true
         # App Store submission stays manual: TestFlight is for finding out
         # what a first Thai user actually experiences before review does.

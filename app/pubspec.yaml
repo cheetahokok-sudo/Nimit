@@ -19,6 +19,10 @@ dependencies:
   share_plus: ^13.3.0
   shared_preferences: ^2.5.5
   thai_lunar: ^0.1.0
+  # Opens the privacy and support pages in the browser, from แหล่งอ้างอิง.
+  # Externally, not in a web view: a policy page whose address bar the reader
+  # cannot see is worth less than one they can.
+  url_launcher: ^6.3.2
 
 dev_dependencies:
   flutter_test:

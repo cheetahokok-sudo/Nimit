@@ -708,6 +708,33 @@ void main() {
       expect(find.text('ไม่ถูกรางวัล'), findsOneWidget);
     });
   });
+
+  testWidgets('แหล่งอ้างอิง offers the policy links, and calls itself no trial',
+      (tester) async {
+    // Tall enough for the whole screen to be built: the links sit below six
+    // tier cards, and a ListView does not build what it cannot show — at the
+    // default 800 px viewport the "findsNothing" assertions below would pass
+    // by never rendering anything at all.
+    tester.view.physicalSize = const Size(420, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await pumpApp(tester);
+    appRouter.go('/sources');
+    await tester.pumpAndSettle();
+
+    // The two destinations App Store Connect requires, reachable from inside
+    // the app — which is where a reviewer looks for them first.
+    expect(find.text('นโยบายความเป็นส่วนตัว'), findsOneWidget);
+    expect(find.text('ติดต่อ / ช่วยเหลือ'), findsOneWidget);
+    expect(find.byIcon(Icons.open_in_new), findsNWidgets(2));
+
+    // No control may advertise a คลังตำรา that does not open, and nothing in
+    // the binary may describe the app as a trial: App Review rejects a build
+    // that presents itself as a demo, and this string used to do exactly that.
+    expect(find.textContaining('เปิดคลังตำรา'), findsNothing);
+    expect(find.textContaining('ทดลอง'), findsNothing);
+  });
 }
 
 /// A draw fixture with a real prize structure, injected per test.

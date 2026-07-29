@@ -5,8 +5,21 @@ Thumbs.db
 # Claude
 .claude/
 
-# Research & design documents live in the private Nimit-docs repo
-docs/
+# Research & design documents live in the private Nimit-docs repo.
+#
+# Written `docs/*` and not `docs/`, deliberately: git does not descend into an
+# excluded DIRECTORY, so a later `!docs/store/` under a `docs/` rule re-includes
+# nothing and fails silently. Excluding the contents instead leaves the door open
+# for the one exception below.
+docs/*
+
+# ...which is docs/store/. That is not research — it is the text of pages that get
+# PUBLISHED: the privacy policy, the support page, and the answers typed into App
+# Store Connect. privacy.md's own rule is "if the app changes, this page changes in
+# the same commit", and a page whose words live on one laptop cannot obey it.
+# Nothing in it is secret; all of it is written to be read by strangers. The scans,
+# the market research and the Nimit-docs drafts stay excluded.
+!docs/store/
 
 # ---------------------------------------------------------------------------
 # THIS REPOSITORY IS PUBLIC. Git history is effectively permanent — a secret or
