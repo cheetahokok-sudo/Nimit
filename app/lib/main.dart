@@ -29,6 +29,9 @@ Future<void> main() async {
   final prefs = await SharedPreferences.getInstance();
   runApp(
     ProviderScope(
+      // Without this, a failed request spins for ~40s before any error state
+      // is reachable. See nimitRetry.
+      retry: nimitRetry,
       overrides: [
         sharedPreferencesProvider.overrideWithValue(prefs),
         if (_useRemote && _supabaseUrl.isNotEmpty && _supabaseAnonKey.isNotEmpty) ...[

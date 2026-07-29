@@ -244,6 +244,24 @@ class MockLibraryRepository implements LibraryRepository {
     return ZodiacYearReading.empty(index, lunarMonth);
   }
 
+  /// One sample row for the demo query, empty for everything else — so the
+  /// mock exercises both the result path and the honest empty state without
+  /// pretending the offline build holds a library it does not.
+  @override
+  Future<List<SymbolSearchResult>> search(String query) async {
+    await Future<void>.delayed(_latency);
+    if (!query.trim().contains('นก')) return const [];
+    return const [
+      SymbolSearchResult(
+        slug: 'bird',
+        nameTh: 'นก',
+        category: 'สัญลักษณ์ในความฝัน',
+        teaserTh: 'ตัวอย่างข้อมูล — เชื่อมฐานข้อมูลจริงเพื่อค้นคลังทั้งชุด',
+        matchKind: 'exact',
+      ),
+    ];
+  }
+
   @override
   Future<SymbolStory> story(String slug) async {
     await Future<void>.delayed(_latency);

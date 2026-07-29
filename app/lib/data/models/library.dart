@@ -1,5 +1,41 @@
 import 'source.dart';
 
+/// One row from the library search — a name and a teaser, never a body.
+///
+/// Mirrors `api.search_symbols`, which returns names and 140-character teasers
+/// only: reading an interpretation always goes through the story screen, where
+/// it arrives with its tier badge and citation attached.
+class SymbolSearchResult {
+  const SymbolSearchResult({
+    required this.slug,
+    required this.nameTh,
+    required this.category,
+    required this.teaserTh,
+    required this.matchKind,
+  });
+
+  final String slug;
+  final String nameTh;
+  final String category;
+  final String teaserTh;
+
+  /// 'exact', 'loose' (tone marks ignored) or 'fuzzy' (trigram similarity).
+  /// The screen says so when results are fuzzy — a near-miss presented as a
+  /// match would be a small lie in an app about not lying.
+  final String matchKind;
+
+  bool get isFuzzy => matchKind == 'fuzzy';
+
+  factory SymbolSearchResult.fromJson(Map<String, dynamic> json) =>
+      SymbolSearchResult(
+        slug: json['slug'] as String? ?? '',
+        nameTh: json['name_th'] as String? ?? '',
+        category: json['category'] as String? ?? '',
+        teaserTh: json['teaser_th'] as String? ?? '',
+        matchKind: json['match_kind'] as String? ?? '',
+      );
+}
+
 /// One sourced reading of a symbol, as shown on the story screen.
 class SymbolReading {
   const SymbolReading({

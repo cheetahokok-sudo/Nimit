@@ -16,6 +16,20 @@ final sharedPreferencesProvider = Provider<SharedPreferences>(
   (ref) => throw UnimplementedError('Override in main()'),
 );
 
+/// Retry policy for every provider in the app. Passed to the root
+/// ProviderScope, and to any test that needs to see a failure the way a user
+/// would.
+///
+/// Riverpod 3 retries a failed provider ten times with exponential backoff,
+/// and holds `AsyncLoading` the whole way — so a `.when(error:)` branch is
+/// unreachable for roughly forty seconds. On a Thai mobile network a dropped
+/// request is the ordinary case, and forty seconds of spinner is not a slow
+/// screen, it is a broken one that never says so. Two quick retries absorb a
+/// genuine blip; after about a second the screen tells the truth instead.
+Duration? nimitRetry(int retryCount, Object error) => retryCount >= 2
+    ? null
+    : Duration(milliseconds: 300 * (retryCount + 1));
+
 // ---- Repository providers (swap these overrides for Supabase later) ----
 
 final dreamRepositoryProvider =
@@ -127,6 +141,14 @@ final zodiacYearProvider =
 
 final symbolStoryProvider = FutureProvider.family<SymbolStory, String>(
   (ref, slug) => ref.watch(libraryRepositoryProvider).story(slug),
+);
+
+/// คลังตำรา search, family-keyed on the trimmed query so retyping the same
+/// word does not refetch. The screen never asks below two characters — the
+/// server would reject it, and the guard belongs before the round trip.
+final librarySearchProvider =
+    FutureProvider.family<List<SymbolSearchResult>, String>(
+  (ref, query) => ref.watch(libraryRepositoryProvider).search(query),
 );
 
 /// กระแสปีนี้ — real draws joined to ตำรา meaning.

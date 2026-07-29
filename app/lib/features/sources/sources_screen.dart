@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../../core/links.dart';
@@ -60,13 +61,36 @@ class SourcesScreen extends ConsumerWidget {
               ),
               const SizedBox(height: 12),
             ],
-            // A statement, not a button. It used to be a control that opened
+            // เปิดคลังตำรา is a real door now: it opens the search screen
+            // over the published library. It spent a while as a plain
+            // statement, after an earlier life as a button that opened
             // nothing and apologised in a snackbar — a promise the app could
             // not keep, on the one screen whose whole subject is keeping them.
-            if (count != null) ...[
-              const SizedBox(height: 4),
-              DisclaimerText('ขณะนี้คลังอ้างอิงมี $count รายการ'),
-            ],
+            const SizedBox(height: 4),
+            SectionCard(
+              onTap: () => context.go('/sources/library'),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text('เปิดคลังตำรา',
+                            style: textTheme.titleSmall!
+                                .copyWith(fontWeight: FontWeight.w700)),
+                        const SizedBox(height: 2),
+                        DisclaimerText(count != null
+                            ? 'ค้นสัญลักษณ์จากคลังอ้างอิง $count รายการ พร้อมที่มาและข้อความต้นฉบับ'
+                            : 'ค้นสัญลักษณ์พร้อมที่มาและข้อความต้นฉบับ'),
+                      ],
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  const Icon(Icons.chevron_right,
+                      size: 20, color: NimitColors.inkSoft),
+                ],
+              ),
+            ),
             const SizedBox(height: 24),
             const SectionHeader('เกี่ยวกับแอป'),
             const SizedBox(height: 12),

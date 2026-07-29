@@ -73,6 +73,11 @@ abstract interface class LotteryRepository {
 abstract interface class LibraryRepository {
   Future<SymbolStory> story(String slug);
 
+  /// Search published symbols by Thai term. The server enforces a minimum of
+  /// two characters and a hard row cap; callers guard the minimum so a short
+  /// query never becomes a round trip that ends in an exception.
+  Future<List<SymbolSearchResult>> search(String query);
+
   /// The ทักษา reading for a weekday (1=Mon..7=Sun). Sends only the day —
   /// never the birth date, which stays on the device.
   Future<TaksaReading> taksa(int weekday);

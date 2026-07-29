@@ -33,6 +33,25 @@ class PostgrestLibraryRepository implements LibraryRepository {
       };
 
   @override
+  Future<List<SymbolSearchResult>> search(String query) async {
+    final uri = Uri.parse('$baseUrl/rest/v1/rpc/search_symbols');
+    final body = utf8.encode(jsonEncode({'q': query}));
+    final response =
+        await _client.post(uri, headers: _headers, body: body).timeout(_timeout);
+    if (response.statusCode != 200) {
+      throw Exception('search_symbols returned HTTP ${response.statusCode}');
+    }
+    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    if (decoded is! List) {
+      throw Exception('search_symbols: unexpected response shape');
+    }
+    return [
+      for (final row in decoded)
+        SymbolSearchResult.fromJson(row as Map<String, dynamic>),
+    ];
+  }
+
+  @override
   Future<SymbolStory> story(String slug) async {
     final uri = Uri.parse('$baseUrl/rest/v1/rpc/symbol_story');
     // Explicit UTF-8 both ways: every field here is Thai, and a charset-less

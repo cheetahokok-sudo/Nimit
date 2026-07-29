@@ -1,9 +1,11 @@
+import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../features/dream/dream_entry_screen.dart';
 import '../../features/dream/dream_result_screen.dart';
 import '../../features/fortune/fortune_screen.dart';
 import '../../features/home/home_screen.dart';
+import '../../features/library/library_search_screen.dart';
 import '../../features/library/symbol_story_screen.dart';
 import '../../features/lottery/lottery_history_screen.dart';
 import '../../features/lottery/lottery_me_screen.dart';
@@ -101,6 +103,28 @@ final appRouter = GoRouter(
     GoRoute(
       path: '/sources',
       builder: (context, state) => const SourcesScreen(),
+      routes: [
+        GoRoute(
+          path: 'library',
+          builder: (context, state) => const LibrarySearchScreen(),
+          routes: [
+            // The story screen normally lives inside the shell (under
+            // /trends); here it is reached from a search, so it keeps the
+            // search's back stack instead — popping returns to the results,
+            // not to a tab the user never visited. Outside the shell nothing
+            // provides a Scaffold, hence the wrapper.
+            GoRoute(
+              path: 'symbol/:slug',
+              builder: (context, state) => Scaffold(
+                body: SafeArea(
+                  child: SymbolStoryScreen(
+                      slug: state.pathParameters['slug'] ?? ''),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ],
     ),
   ],
 );

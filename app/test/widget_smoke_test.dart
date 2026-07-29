@@ -729,11 +729,20 @@ void main() {
     expect(find.text('ติดต่อ / ช่วยเหลือ'), findsOneWidget);
     expect(find.byIcon(Icons.open_in_new), findsNWidgets(2));
 
-    // No control may advertise a คลังตำรา that does not open, and nothing in
-    // the binary may describe the app as a trial: App Review rejects a build
-    // that presents itself as a demo, and this string used to do exactly that.
-    expect(find.textContaining('เปิดคลังตำรา'), findsNothing);
+    // Nothing in the binary may describe the app as a trial: App Review
+    // rejects a build that presents itself as a demo, and this string used to
+    // do exactly that.
     expect(find.textContaining('ทดลอง'), findsNothing);
+
+    // No control may advertise a คลังตำรา that does not open. The rule used to
+    // be enforced by asserting the words were absent, because the button was
+    // a promise the app could not keep; now it opens the search screen, and
+    // the same rule is enforced by following it.
+    expect(find.textContaining('เปิดคลังตำรา'), findsOneWidget);
+    await tester.tap(find.textContaining('เปิดคลังตำรา'));
+    await tester.pumpAndSettle();
+    expect(find.text('คลังตำรา'), findsOneWidget);
+    expect(find.byType(TextField), findsOneWidget);
   });
 }
 
@@ -935,5 +944,9 @@ class _StubLibrary implements LibraryRepository {
 
   @override
   Future<SymbolStory> story(String slug) =>
+      throw UnimplementedError('not used by this test');
+
+  @override
+  Future<List<SymbolSearchResult>> search(String query) =>
       throw UnimplementedError('not used by this test');
 }
