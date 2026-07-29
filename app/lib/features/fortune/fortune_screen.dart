@@ -59,9 +59,10 @@ class FortuneScreen extends ConsumerWidget {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
       children: [
-        Text('ดวงของฉัน',
-            style:
-                textTheme.headlineSmall!.copyWith(fontWeight: FontWeight.w800)),
+        Text(
+          'ดวงของฉัน',
+          style: textTheme.headlineSmall!.copyWith(fontWeight: FontWeight.w800),
+        ),
         const SizedBox(height: 14),
         profile.when(
           loading: () => const Padding(
@@ -70,7 +71,8 @@ class FortuneScreen extends ConsumerWidget {
           ),
           error: (e, _) => const SectionCard(
             child: DisclaimerText(
-                'ยังอ่านข้อมูลในเครื่องไม่ได้ ลองเปิดหน้านี้ใหม่อีกครั้ง'),
+              'ยังอ่านข้อมูลในเครื่องไม่ได้ ลองเปิดหน้านี้ใหม่อีกครั้ง',
+            ),
           ),
           data: (p) => _Body(profile: p),
         ),
@@ -101,9 +103,7 @@ class _Body extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final birth = profile.isComplete
-        ? _tryConvert(profile.date!)
-        : null;
+    final birth = profile.isComplete ? _tryConvert(profile.date!) : null;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -122,8 +122,9 @@ class _Body extends ConsumerWidget {
             index: birth.zodiacIndex,
             lunarMonth: birth.lunarMonthNumber,
             yearNameTh: birth.zodiacYearTh,
-            boundaryNoteTh:
-                birth.zodiacIsBoundarySensitive ? birth.zodiacNoteTh : null,
+            boundaryNoteTh: birth.zodiacIsBoundarySensitive
+                ? birth.zodiacNoteTh
+                : null,
           ),
           const SizedBox(height: 18),
           _AgeWheelSection(age: completedYears(birth.effectiveCivilDate)),
@@ -134,8 +135,9 @@ class _Body extends ConsumerWidget {
             SectionCard(
               color: NimitColors.pastelCream,
               child: DisclaimerText(
-                  'เดิมคุณบอกไว้แค่เดือน ${thaiMonths[profile.legacyMonth! - 1]} '
-                  'ขอวันและปีเกิดเพิ่ม เพราะเดือนทางจันทรคติคำนวณจากวันเดือนปีพร้อมกัน'),
+                'เดิมคุณบอกไว้แค่เดือน ${thaiMonths[profile.legacyMonth! - 1]} '
+                'ขอวันและปีเกิดเพิ่ม เพราะเดือนทางจันทรคติคำนวณจากวันเดือนปีพร้อมกัน',
+              ),
             ),
         ],
 
@@ -180,12 +182,30 @@ class _HeroCard extends ConsumerWidget {
     // Today, not the birth date: the headline is the standing of the day the
     // user is reading on, which is what a ตำรา-minded reader looks for first.
     final today = DateTime.now();
-    final todayLunar = _tryConvert(DateTime(today.year, today.month, today.day));
+    final todayLunar = _tryConvert(
+      DateTime(today.year, today.month, today.day),
+    );
 
-    final phaseDay = todayLunar == null
+    // WHAT LEADS, AND WHY IT CHANGED. This card used to make the MONTH the
+    // hero — เดือนแปดหลัง set large and bold, with ขึ้น ๑๕ ค่ำ smaller above it.
+    // That inverted the value of the information. The month name is the part a
+    // reader can do least with: nothing in the library reads by lunar month
+    // alone, and 'แปดหลัง' is a calendar mechanic, not a meaning. What actually
+    // locates the day is the weekday and the date, which is also how every
+    // household ปฏิทินไทย sets it — the civil date large, the lunar reckoning
+    // beneath it in smaller type.
+    //
+    // So: วันพุธที่ 29 leads, and ขึ้น ๑๕ ค่ำ · เดือนแปดหลัง sit together below at
+    // one size, because neither outranks the other.
+    final dayLine = todayLunar == null
+        ? 'วันนี้'
+        : '${todayLunar.weekdayTh}ที่ ${today.day}';
+    // Set the way a household ปฏิทินไทย sets it: phase, day, ค่ำ, then the
+    // month, separated by spaces rather than punctuation.
+    final lunarLine = todayLunar == null
         ? ''
-        : '${todayLunar.phaseTh} ${thaiDigits(todayLunar.lunar.day)} ค่ำ';
-    final monthName = todayLunar?.monthNameTh ?? 'วันนี้';
+        : '${todayLunar.phaseTh} ${thaiDigits(todayLunar.lunar.day)} ค่ำ'
+              ' ${todayLunar.monthNameTh}';
 
     return Material(
       color: NimitColors.aubergine,
@@ -198,87 +218,117 @@ class _HeroCard extends ConsumerWidget {
         // as a window onto something larger.
         child: ClipRRect(
           borderRadius: BorderRadius.circular(22),
-          child: LayoutBuilder(builder: (context, constraints) {
-            // The text column is sized EXPLICITLY rather than left to fill the
-            // Stack. A previous version of a card on this screen shipped with
-            // colliding text, and "it looked fine on my device" is how that
-            // happens: the orb occupies the right, so the words are told how
-            // much room they actually have and wrap inside it.
-            // Available text width, computed against what the orb ACTUALLY
-            // occupies. The first version subtracted the orb from maxWidth and
-            // forgot this padding, so the column ran ~25 px under the graphic —
-            // and the 320 px test passed anyway, because it only checked for
-            // overflow and overlapping text does not overflow. There is now a
-            // geometry test that compares the two rectangles directly.
-            const leftPad = 22.0;
-            const gap = 10.0;
-            final orbSize = _orbSizeFor(constraints.maxWidth);
-            final orbVisible = orbSize * (1 - _orbBleed);
-            final textWidth = math.max(
-                140.0, constraints.maxWidth - leftPad - orbVisible - gap);
+          child: LayoutBuilder(
+            builder: (context, constraints) {
+              // The text column is sized EXPLICITLY rather than left to fill the
+              // Stack. A previous version of a card on this screen shipped with
+              // colliding text, and "it looked fine on my device" is how that
+              // happens: the orb occupies the right, so the words are told how
+              // much room they actually have and wrap inside it.
+              // Available text width, computed against what the orb ACTUALLY
+              // occupies. The first version subtracted the orb from maxWidth and
+              // forgot this padding, so the column ran ~25 px under the graphic —
+              // and the 320 px test passed anyway, because it only checked for
+              // overflow and overlapping text does not overflow. There is now a
+              // geometry test that compares the two rectangles directly.
+              const leftPad = 22.0;
+              const gap = 10.0;
+              final orbSize = _orbSizeFor(constraints.maxWidth);
+              final orbVisible = orbSize * (1 - _orbBleed);
+              final textWidth = math.max(
+                140.0,
+                constraints.maxWidth - leftPad - orbVisible - gap,
+              );
 
-            return Stack(
-              children: [
-                Positioned(
-                  right: -orbSize * _orbBleed,
-                  top: -orbSize * 0.12,
-                  child: CelestialOrb(size: orbSize),
-                ),
-                Padding(
-                  padding: const EdgeInsets.fromLTRB(leftPad, 22, 22, 20),
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      // Headline and eyebrow sit level with the orb, so they are
-                      // the parts that must stay narrow.
-                      SizedBox(
-                        width: textWidth,
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
-                            Text('วันนี้ทางจันทรคติ',
-                                style: textTheme.labelMedium!.copyWith(
+              // WIDTH FORCED, and this is a bug fix rather than a tidy-up.
+              //
+              // A Stack sizes itself to its NON-positioned children, so this one
+              // shrink-wrapped to the text column — and `Positioned(right:)` is
+              // measured from the Stack's edge, not the card's. The result was
+              // that the orb anchored to the right of the TEXT while its diameter
+              // grew with the card, so every extra pixel of screen width pushed
+              // the orb further LEFT, into the words.
+              //
+              // It failed upward, which is why it survived: 320 and 360 px were
+              // clear and 390 and 430 collided, the opposite of the narrow-screen
+              // failure anyone would think to check. The geometry test caught it
+              // and then sat red because the arithmetic above it looked correct
+              // in isolation — it was, and the Stack underneath was lying about
+              // what `right` meant.
+              return SizedBox(
+                width: constraints.maxWidth,
+                child: Stack(
+                  children: [
+                    Positioned(
+                      right: -orbSize * _orbBleed,
+                      top: -orbSize * 0.12,
+                      child: CelestialOrb(size: orbSize),
+                    ),
+                    Padding(
+                      padding: const EdgeInsets.fromLTRB(leftPad, 22, 22, 20),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          // Headline and eyebrow sit level with the orb, so they are
+                          // the parts that must stay narrow.
+                          SizedBox(
+                            width: textWidth,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Text(
+                                  'วันนี้ทางจันทรคติ',
+                                  style: textTheme.labelMedium!.copyWith(
                                     color: NimitColors.gold,
-                                    letterSpacing: 0.6)),
-                            const SizedBox(height: 10),
-                            // Split deliberately rather than left to wrap. The
-                            // longest month name is เดือนแปดหลัง, which pushed
-                            // "หลัง" onto a line of its own and looked like a
-                            // mistake. Breaking after ค่ำ is also how a calendar
-                            // sets it, and it makes the MONTH the hero — which
-                            // is what the screen is about.
-                            Text(phaseDay,
-                                style: textTheme.titleMedium!.copyWith(
+                                    letterSpacing: 0.6,
+                                  ),
+                                ),
+                                const SizedBox(height: 10),
+                                // Keyed for tests, not found by text: the content
+                                // is DateTime.now()'s date, so any test matching
+                                // the string would start failing tomorrow.
+                                Text(
+                                  dayLine,
+                                  key: const ValueKey('hero-date'),
+                                  style: textTheme.headlineSmall!.copyWith(
+                                    color: NimitColors.onDark,
+                                    fontWeight: FontWeight.w800,
+                                    height: 1.2,
+                                  ),
+                                ),
+                                const SizedBox(height: 4),
+                                // ขึ้น ๑๕ ค่ำ and เดือนแปดหลัง share one line at one
+                                // size. Neither is more useful than the other, and
+                                // the month in particular is a calendar mechanic
+                                // the library cannot read by — giving it the
+                                // largest type on the screen was overstating it.
+                                Text(
+                                  lunarLine,
+                                  key: const ValueKey('hero-lunar'),
+                                  style: textTheme.titleMedium!.copyWith(
                                     color: NimitColors.onDarkSoft,
-                                    fontWeight: FontWeight.w600)),
-                            const SizedBox(height: 2),
-                            Text(monthName,
-                                // Keyed for tests: the content is
-                                // DateTime.now()'s lunar month, so any test
-                                // that found this by TEXT would break the day
-                                // the month turns.
-                                key: const ValueKey('hero-month'),
-                                style: textTheme.headlineSmall!.copyWith(
-                                  color: NimitColors.onDark,
-                                  fontWeight: FontWeight.w800,
-                                  height: 1.2,
-                                )),
-                          ],
-                        ),
+                                    fontWeight: FontWeight.w600,
+                                    height: 1.35,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          // Below the orb's mass, so these may use the full width.
+                          _HeroSubtitle(birth: birth, todayLunar: todayLunar),
+                          const SizedBox(height: 16),
+                          _HeroPill(isSet: isSet),
+                        ],
                       ),
-                      const SizedBox(height: 12),
-                      // Below the orb's mass, so these may use the full width.
-                      _HeroSubtitle(birth: birth, todayLunar: todayLunar),
-                      const SizedBox(height: 16),
-                      _HeroPill(isSet: isSet),
-                    ],
-                  ),
+                    ),
+                  ],
                 ),
-              ],
-            );
-          }),
+              );
+            },
+          ),
         ),
       ),
     );
@@ -312,9 +362,13 @@ class _HeroSubtitle extends ConsumerWidget {
       line = 'แตะเพื่อบอกวันเดือนปีเกิด แล้วดูว่าตรงกับวันทางจันทรคติวันใด';
     }
 
-    return Text(line,
-        style: textTheme.bodyMedium!
-            .copyWith(color: NimitColors.onDarkSoft, height: 1.55));
+    return Text(
+      line,
+      style: textTheme.bodyMedium!.copyWith(
+        color: NimitColors.onDarkSoft,
+        height: 1.55,
+      ),
+    );
   }
 
   /// What can be said truthfully before any ตำรา is published.
@@ -348,13 +402,19 @@ class _HeroPill extends StatelessWidget {
       child: Row(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Icon(isSet ? Icons.check_circle_outline : Icons.edit_calendar_outlined,
-              size: 17, color: NimitColors.aubergineDeep),
+          Icon(
+            isSet ? Icons.check_circle_outline : Icons.edit_calendar_outlined,
+            size: 17,
+            color: NimitColors.aubergineDeep,
+          ),
           const SizedBox(width: 7),
-          Text(label,
-              style: Theme.of(context).textTheme.labelLarge!.copyWith(
-                  color: NimitColors.aubergineDeep,
-                  fontWeight: FontWeight.w800)),
+          Text(
+            label,
+            style: Theme.of(context).textTheme.labelLarge!.copyWith(
+              color: NimitColors.aubergineDeep,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
         ],
       ),
     );
@@ -408,7 +468,11 @@ class _BirthDateSheetState extends State<_BirthDateSheet> {
 
     return Padding(
       padding: EdgeInsets.fromLTRB(
-          20, 18, 20, MediaQuery.of(context).viewInsets.bottom + 24),
+        20,
+        18,
+        20,
+        MediaQuery.of(context).viewInsets.bottom + 24,
+      ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -424,12 +488,15 @@ class _BirthDateSheetState extends State<_BirthDateSheet> {
             ),
           ),
           const SizedBox(height: 16),
-          Text('วันเดือนปีเกิด',
-              style:
-                  textTheme.titleMedium!.copyWith(fontWeight: FontWeight.w800)),
+          Text(
+            'วันเดือนปีเกิด',
+            style: textTheme.titleMedium!.copyWith(fontWeight: FontWeight.w800),
+          ),
           const SizedBox(height: 4),
-          Text('ใช้คำนวณวันทางจันทรคติ เก็บไว้ในเครื่องนี้เท่านั้น',
-              style: textTheme.bodySmall!.copyWith(color: NimitColors.inkSoft)),
+          Text(
+            'ใช้คำนวณวันทางจันทรคติ เก็บไว้ในเครื่องนี้เท่านั้น',
+            style: textTheme.bodySmall!.copyWith(color: NimitColors.inkSoft),
+          ),
           const SizedBox(height: 16),
           Row(
             children: [
@@ -440,7 +507,7 @@ class _BirthDateSheetState extends State<_BirthDateSheet> {
                   value: _day,
                   items: [
                     for (var i = 1; i <= _daysInMonth; i++)
-                      DropdownMenuItem(value: i, child: Text('$i'))
+                      DropdownMenuItem(value: i, child: Text('$i')),
                   ],
                   onChanged: (v) => setState(() => _day = v),
                 ),
@@ -453,7 +520,10 @@ class _BirthDateSheetState extends State<_BirthDateSheet> {
                   value: _month,
                   items: [
                     for (var i = 1; i <= 12; i++)
-                      DropdownMenuItem(value: i, child: Text(thaiMonths[i - 1]))
+                      DropdownMenuItem(
+                        value: i,
+                        child: Text(thaiMonths[i - 1]),
+                      ),
                   ],
                   onChanged: (v) => setState(() {
                     _month = v;
@@ -474,7 +544,7 @@ class _BirthDateSheetState extends State<_BirthDateSheet> {
                   value: _yearBe,
                   items: [
                     for (var y = _maxCe + 543; y >= _minCe + 543; y--)
-                      DropdownMenuItem(value: y, child: Text('$y'))
+                      DropdownMenuItem(value: y, child: Text('$y')),
                   ],
                   onChanged: (v) => setState(() => _yearBe = v),
                 ),
@@ -489,15 +559,17 @@ class _BirthDateSheetState extends State<_BirthDateSheet> {
               // converted, and saving one would leave the screen in a state it
               // has no honest rendering for.
               onPressed: _complete
-                  ? () => Navigator.of(context)
-                      .pop(DateTime(_yearBe! - 543, _month!, _day!))
+                  ? () => Navigator.of(
+                      context,
+                    ).pop(DateTime(_yearBe! - 543, _month!, _day!))
                   : null,
               style: FilledButton.styleFrom(
                 backgroundColor: NimitColors.aubergine,
                 foregroundColor: NimitColors.onDark,
                 minimumSize: const Size(0, 52),
                 shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(16)),
+                  borderRadius: BorderRadius.circular(16),
+                ),
               ),
               child: const Text('บันทึก'),
             ),
@@ -527,8 +599,10 @@ class _Field<T> extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(label,
-            style: textTheme.bodySmall!.copyWith(color: NimitColors.inkSoft)),
+        Text(
+          label,
+          style: textTheme.bodySmall!.copyWith(color: NimitColors.inkSoft),
+        ),
         const SizedBox(height: 4),
         DropdownButtonFormField<T>(
           initialValue: value,
@@ -538,8 +612,10 @@ class _Field<T> extends StatelessWidget {
           decoration: InputDecoration(
             filled: true,
             fillColor: NimitColors.surface,
-            contentPadding:
-                const EdgeInsets.symmetric(horizontal: 12, vertical: 14),
+            contentPadding: const EdgeInsets.symmetric(
+              horizontal: 12,
+              vertical: 14,
+            ),
             border: OutlineInputBorder(
               borderRadius: BorderRadius.circular(14),
               borderSide: const BorderSide(color: NimitColors.border),
@@ -568,7 +644,8 @@ class _Field<T> extends StatelessWidget {
 int completedYears(DateTime birthDate, {DateTime? today}) {
   final now = today ?? DateTime.now();
   var years = now.year - birthDate.year;
-  final hadBirthdayThisYear = now.month > birthDate.month ||
+  final hadBirthdayThisYear =
+      now.month > birthDate.month ||
       (now.month == birthDate.month && now.day >= birthDate.day);
   if (!hadBirthdayThisYear) years -= 1;
   return years < 0 ? 0 : years;
@@ -606,8 +683,9 @@ class _ZodiacYearSection extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final textTheme = Theme.of(context).textTheme;
-    final zodiac =
-        ref.watch(zodiacYearProvider((index: index, lunarMonth: lunarMonth)));
+    final zodiac = ref.watch(
+      zodiacYearProvider((index: index, lunarMonth: lunarMonth)),
+    );
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
@@ -633,21 +711,29 @@ class _ZodiacYearSection extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('ปี$yearNameTh',
-                        style: textTheme.titleSmall!
-                            .copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      'ปี$yearNameTh',
+                      style: textTheme.titleSmall!.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     if (boundaryNoteTh != null) ...[
                       const SizedBox(height: 6),
-                      Text(boundaryNoteTh!,
-                          style: textTheme.bodySmall!.copyWith(
-                              color: NimitColors.inkSoft, height: 1.45)),
+                      Text(
+                        boundaryNoteTh!,
+                        style: textTheme.bodySmall!.copyWith(
+                          color: NimitColors.inkSoft,
+                          height: 1.45,
+                        ),
+                      ),
                     ],
                     if (!z.hasAnyReading) ...[
                       const SizedBox(height: 8),
                       Text(
-                          'ยังไม่เผยแพร่คำทำนายตามปีนักษัตร '
-                          'เพราะมาจากตำราเล่มเดียว ต้องมีฉบับที่สองยืนยันก่อน',
-                          style: textTheme.bodyMedium!.copyWith(height: 1.6)),
+                        'ยังไม่เผยแพร่คำทำนายตามปีนักษัตร '
+                        'เพราะมาจากตำราเล่มเดียว ต้องมีฉบับที่สองยืนยันก่อน',
+                        style: textTheme.bodyMedium!.copyWith(height: 1.6),
+                      ),
                     ],
                   ],
                 ),
@@ -662,8 +748,7 @@ class _ZodiacYearSection extends ConsumerWidget {
               if (z.monthReadings.isNotEmpty) ...[
                 const SizedBox(height: 10),
                 for (final r in z.monthReadings) ...[
-                  _ReadingCard(
-                      labelTh: 'คำทำนายย่อยตามเดือนเกิด', entry: r),
+                  _ReadingCard(labelTh: 'คำทำนายย่อยตามเดือนเกิด', entry: r),
                   const SizedBox(height: 10),
                 ],
               ],
@@ -691,24 +776,37 @@ class _ReadingCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(labelTh,
-              style: textTheme.bodySmall!.copyWith(
-                  color: NimitColors.inkSoft,
-                  fontWeight: FontWeight.w700,
-                  height: 1.45)),
+          Text(
+            labelTh,
+            style: textTheme.bodySmall!.copyWith(
+              color: NimitColors.inkSoft,
+              fontWeight: FontWeight.w700,
+              height: 1.45,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text(entry.summaryTh,
-              style: textTheme.bodyMedium!
-                  .copyWith(height: 1.6, fontWeight: FontWeight.w600)),
+          Text(
+            entry.summaryTh,
+            style: textTheme.bodyMedium!.copyWith(
+              height: 1.6,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
           const SizedBox(height: 8),
-          Text(entry.bodyTh,
-              style: textTheme.bodyMedium!.copyWith(height: 1.6)),
+          Text(
+            entry.bodyTh,
+            style: textTheme.bodyMedium!.copyWith(height: 1.6),
+          ),
           const SizedBox(height: 12),
           const Divider(color: NimitColors.border, height: 1),
           const SizedBox(height: 10),
-          Text('ที่มา: ${entry.sourceTh}',
-              style: textTheme.bodySmall!
-                  .copyWith(color: NimitColors.inkSoft, height: 1.45)),
+          Text(
+            'ที่มา: ${entry.sourceTh}',
+            style: textTheme.bodySmall!.copyWith(
+              color: NimitColors.inkSoft,
+              height: 1.45,
+            ),
+          ),
         ],
       ),
     );
@@ -758,14 +856,18 @@ class _AgeWheelSection extends ConsumerWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text('ยังไม่มีตำราในคลังที่ทำนายจากอายุ',
-                        style: textTheme.titleSmall!
-                            .copyWith(fontWeight: FontWeight.w700)),
+                    Text(
+                      'ยังไม่มีตำราในคลังที่ทำนายจากอายุ',
+                      style: textTheme.titleSmall!.copyWith(
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
                     const SizedBox(height: 8),
                     Text(
-                        'อายุ ${w.age} ปีเต็ม คำนวณจากวันเกิดในเครื่อง '
-                        'ส่วนคำทำนายต้องมีตำราที่อ้างอิงได้ก่อน นิมิตจะไม่แต่งขึ้นเอง',
-                        style: textTheme.bodyMedium!.copyWith(height: 1.6)),
+                      'อายุ ${w.age} ปีเต็ม คำนวณจากวันเกิดในเครื่อง '
+                      'ส่วนคำทำนายต้องมีตำราที่อ้างอิงได้ก่อน นิมิตจะไม่แต่งขึ้นเอง',
+                      style: textTheme.bodyMedium!.copyWith(height: 1.6),
+                    ),
                   ],
                 ),
               );
@@ -777,15 +879,21 @@ class _AgeWheelSection extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('อายุ ${w.age} ปีเต็ม',
-                          style: textTheme.titleSmall!
-                              .copyWith(fontWeight: FontWeight.w700)),
+                      Text(
+                        'อายุ ${w.age} ปีเต็ม',
+                        style: textTheme.titleSmall!.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 6),
                       Text(
-                          'ตำรานับจากรูปเจดีย์ทีละปีจนครบอายุ '
-                          'ผู้ชายนับเวียนขวา ผู้หญิงนับเวียนซ้าย จึงได้คนละรูป',
-                          style: textTheme.bodySmall!.copyWith(
-                              color: NimitColors.inkSoft, height: 1.45)),
+                        'ตำรานับจากรูปเจดีย์ทีละปีจนครบอายุ '
+                        'ผู้ชายนับเวียนขวา ผู้หญิงนับเวียนซ้าย จึงได้คนละรูป',
+                        style: textTheme.bodySmall!.copyWith(
+                          color: NimitColors.inkSoft,
+                          height: 1.45,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -795,7 +903,10 @@ class _AgeWheelSection extends ConsumerWidget {
                   const SizedBox(height: 10),
                 ],
                 if (w.female != null) ...[
-                  _AgeWheelFigureCard(labelTh: 'ถ้าเป็นหญิง', figure: w.female!),
+                  _AgeWheelFigureCard(
+                    labelTh: 'ถ้าเป็นหญิง',
+                    figure: w.female!,
+                  ),
                   const SizedBox(height: 10),
                 ],
               ],
@@ -821,31 +932,46 @@ class _AgeWheelFigureCard extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text('$labelTh · ${figure.nameTh}',
-              style: textTheme.titleSmall!
-                  .copyWith(fontWeight: FontWeight.w700, height: 1.5)),
+          Text(
+            '$labelTh · ${figure.nameTh}',
+            style: textTheme.titleSmall!.copyWith(
+              fontWeight: FontWeight.w700,
+              height: 1.5,
+            ),
+          ),
           const SizedBox(height: 10),
           if (figure.readings.isEmpty)
             Text(
-                'ยังไม่เผยแพร่คำทำนายของรูปนี้ เพราะมาจากตำราเล่มเดียว '
-                'ต้องมีฉบับที่สองยืนยันก่อน',
-                style: textTheme.bodyMedium!.copyWith(height: 1.6))
+              'ยังไม่เผยแพร่คำทำนายของรูปนี้ เพราะมาจากตำราเล่มเดียว '
+              'ต้องมีฉบับที่สองยืนยันก่อน',
+              style: textTheme.bodyMedium!.copyWith(height: 1.6),
+            )
           else
             for (final r in figure.readings) ...[
-              Text(r.summaryTh,
-                  style: textTheme.bodyMedium!
-                      .copyWith(height: 1.6, fontWeight: FontWeight.w600)),
+              Text(
+                r.summaryTh,
+                style: textTheme.bodyMedium!.copyWith(
+                  height: 1.6,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
               const SizedBox(height: 8),
-              Text(r.bodyTh,
-                  style: textTheme.bodyMedium!.copyWith(height: 1.6)),
+              Text(
+                r.bodyTh,
+                style: textTheme.bodyMedium!.copyWith(height: 1.6),
+              ),
               const SizedBox(height: 12),
               const Divider(color: NimitColors.border, height: 1),
               const SizedBox(height: 10),
               // Assembled in the model, so a reading cannot reach the screen
               // without its source.
-              Text('ที่มา: ${r.sourceTh}',
-                  style: textTheme.bodySmall!
-                      .copyWith(color: NimitColors.inkSoft, height: 1.45)),
+              Text(
+                'ที่มา: ${r.sourceTh}',
+                style: textTheme.bodySmall!.copyWith(
+                  color: NimitColors.inkSoft,
+                  height: 1.45,
+                ),
+              ),
             ],
         ],
       ),
@@ -893,21 +1019,32 @@ class _TaksaSection extends ConsumerWidget {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(r.summaryTh,
-                                style: textTheme.titleSmall!.copyWith(
-                                    fontWeight: FontWeight.w700, height: 1.5)),
+                            Text(
+                              r.summaryTh,
+                              style: textTheme.titleSmall!.copyWith(
+                                fontWeight: FontWeight.w700,
+                                height: 1.5,
+                              ),
+                            ),
                             const SizedBox(height: 10),
-                            Text(r.bodyTh,
-                                style:
-                                    textTheme.bodyMedium!.copyWith(height: 1.6)),
+                            Text(
+                              r.bodyTh,
+                              style: textTheme.bodyMedium!.copyWith(
+                                height: 1.6,
+                              ),
+                            ),
                             const SizedBox(height: 12),
                             const Divider(color: NimitColors.border, height: 1),
                             const SizedBox(height: 10),
                             // Assembled in the model, so a reading cannot reach
                             // the screen without its source.
-                            Text('ที่มา: ${r.sourceTh}',
-                                style: textTheme.bodySmall!.copyWith(
-                                    color: NimitColors.inkSoft, height: 1.45)),
+                            Text(
+                              'ที่มา: ${r.sourceTh}',
+                              style: textTheme.bodySmall!.copyWith(
+                                color: NimitColors.inkSoft,
+                                height: 1.45,
+                              ),
+                            ),
                           ],
                         ),
                       ),
@@ -919,14 +1056,18 @@ class _TaksaSection extends ConsumerWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('ยังไม่มีตำราในคลังที่ทำนายจากวันเกิด',
-                          style: textTheme.titleSmall!
-                              .copyWith(fontWeight: FontWeight.w700)),
+                      Text(
+                        'ยังไม่มีตำราในคลังที่ทำนายจากวันเกิด',
+                        style: textTheme.titleSmall!.copyWith(
+                          fontWeight: FontWeight.w700,
+                        ),
+                      ),
                       const SizedBox(height: 8),
                       Text(
-                          'วันทางจันทรคติข้างบนคำนวณได้จริง ตรวจสอบกับปฏิทินได้ '
-                          'ส่วนคำทำนายต้องมีตำราที่อ้างอิงได้ก่อน นิมิตจะไม่แต่งขึ้นเอง',
-                          style: textTheme.bodyMedium!.copyWith(height: 1.6)),
+                        'วันทางจันทรคติข้างบนคำนวณได้จริง ตรวจสอบกับปฏิทินได้ '
+                        'ส่วนคำทำนายต้องมีตำราที่อ้างอิงได้ก่อน นิมิตจะไม่แต่งขึ้นเอง',
+                        style: textTheme.bodyMedium!.copyWith(height: 1.6),
+                      ),
                     ],
                   ),
                 ),
@@ -947,8 +1088,10 @@ class _BirthFacts extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        const SectionHeader('คำนวณจากวันเกิดของท่าน',
-            caption: 'เป็นการเทียบปฏิทิน ไม่ใช่คำทำนาย'),
+        const SectionHeader(
+          'คำนวณจากวันเกิดของท่าน',
+          caption: 'เป็นการเทียบปฏิทิน ไม่ใช่คำทำนาย',
+        ),
         const SizedBox(height: 10),
         _FactRow(label: 'วันเกิด', value: birth.weekdayTh),
         _FactRow(label: 'วันทางจันทรคติ', value: birth.lunarDateArchaicTh),
@@ -963,11 +1106,13 @@ class _BirthFacts extends StatelessWidget {
           const SizedBox(height: 2),
           SectionCard(
             color: NimitColors.pastelBlue,
-            child: Text(birth.intercalationNoteTh,
-                style: Theme.of(context)
-                    .textTheme
-                    .bodySmall!
-                    .copyWith(color: NimitColors.ink, height: 1.5)),
+            child: Text(
+              birth.intercalationNoteTh,
+              style: Theme.of(context).textTheme.bodySmall!.copyWith(
+                color: NimitColors.ink,
+                height: 1.5,
+              ),
+            ),
           ),
         ],
       ],
@@ -996,24 +1141,34 @@ class _FactRow extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Expanded(
-                  child: Text(label,
-                      style: textTheme.bodyMedium!
-                          .copyWith(color: NimitColors.inkSoft)),
+                  child: Text(
+                    label,
+                    style: textTheme.bodyMedium!.copyWith(
+                      color: NimitColors.inkSoft,
+                    ),
+                  ),
                 ),
                 const SizedBox(width: 12),
                 Flexible(
-                  child: Text(value,
-                      textAlign: TextAlign.end,
-                      style: textTheme.titleSmall!
-                          .copyWith(fontWeight: FontWeight.w800)),
+                  child: Text(
+                    value,
+                    textAlign: TextAlign.end,
+                    style: textTheme.titleSmall!.copyWith(
+                      fontWeight: FontWeight.w800,
+                    ),
+                  ),
                 ),
               ],
             ),
             if (note != null) ...[
               const SizedBox(height: 6),
-              Text(note!,
-                  style: textTheme.bodySmall!
-                      .copyWith(color: NimitColors.inkSoft, height: 1.45)),
+              Text(
+                note!,
+                style: textTheme.bodySmall!.copyWith(
+                  color: NimitColors.inkSoft,
+                  height: 1.45,
+                ),
+              ),
             ],
           ],
         ),
@@ -1044,9 +1199,12 @@ class _PrivacyNote extends ConsumerWidget {
         const SizedBox(width: 7),
         Expanded(
           child: Text(
-              'เก็บวันเดือนปีเกิดไว้ในเครื่องนี้เท่านั้น ไม่ส่งออกจากเครื่อง',
-              style: textTheme.bodySmall!
-                  .copyWith(color: NimitColors.inkSoft, height: 1.45)),
+            'เก็บวันเดือนปีเกิดไว้ในเครื่องนี้เท่านั้น ไม่ส่งออกจากเครื่อง',
+            style: textTheme.bodySmall!.copyWith(
+              color: NimitColors.inkSoft,
+              height: 1.45,
+            ),
+          ),
         ),
         if (canDelete) ...[
           const SizedBox(width: 8),
@@ -1074,8 +1232,9 @@ class _SourceFooter extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         const DisclaimerText(
-            'นิมิตเป็นแอปความเชื่อและวัฒนธรรม ไม่ใช่คำแนะนำทางการเงิน '
-            'การลงทุน หรือทางการแพทย์'),
+          'นิมิตเป็นแอปความเชื่อและวัฒนธรรม ไม่ใช่คำแนะนำทางการเงิน '
+          'การลงทุน หรือทางการแพทย์',
+        ),
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton(

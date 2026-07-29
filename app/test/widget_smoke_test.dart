@@ -225,7 +225,22 @@ void main() {
     appRouter.go('/fortune');
     await tester.pumpAndSettle();
 
-    expect(find.text('ขึ้น ๑๕ ค่ำ เดือนแปดหลัง'), findsOneWidget);
+    // Excludes the hero line explicitly. The hero shows TODAY's lunar date and
+    // the fact row shows the BIRTH date, so the two strings coincide only on
+    // days when the birth date happens to be today — meaning findsOneWidget and
+    // findsNWidgets(2) are each correct on some days and wrong on others. Either
+    // would be a test with an expiry date. What is asserted is the fact row,
+    // identified by not being the keyed hero text.
+    expect(
+      find.byWidgetPredicate(
+        (w) =>
+            w is Text &&
+            w.data == 'ขึ้น ๑๕ ค่ำ เดือนแปดหลัง' &&
+            w.key != const ValueKey('hero-lunar'),
+        description: 'the birth fact row, not the hero line',
+      ),
+      findsOneWidget,
+    );
     expect(find.text('อธิกมาส · ปกติวาร'), findsOneWidget);
     // The computed lookup keys a ตำรา reading is found by. These are no longer
     // only facts on a list: ปีนักษัตร now heads its own reading section too, so
@@ -436,11 +451,19 @@ void main() {
       await tester.pumpAndSettle();
 
       final orb = tester.getRect(find.byType(CelestialOrb));
-      // By KEY, not text. The headline renders DateTime.now()'s lunar month,
-      // so finding it by 'เดือนแปดหลัง' worked only until 13 Aug 2026 — a test
-      // with an expiry date, set to fail long after anyone remembers why.
+      // By KEY, not text. Both lines render from DateTime.now(), so finding
+      // them by string worked only until the date changed — a test with an
+      // expiry, set to fail long after anyone remembers why.
+      //
+      // This failed at 390 and 430 while passing at 320 and 360, which is the
+      // opposite of the narrow-screen collision anyone would look for. The
+      // Stack was shrink-wrapping to the text column, so `Positioned(right:)`
+      // anchored to the words rather than to the card, and every extra pixel of
+      // width grew the orb further LEFT across them. Both lines are checked now
+      // because either can be the widest.
       final rects = <String, Rect>{
-        'headline': tester.getRect(find.byKey(const ValueKey('hero-month'))),
+        'date': tester.getRect(find.byKey(const ValueKey('hero-date'))),
+        'lunar': tester.getRect(find.byKey(const ValueKey('hero-lunar'))),
         'eyebrow': tester.getRect(find.text('วันนี้ทางจันทรคติ')),
       };
 
