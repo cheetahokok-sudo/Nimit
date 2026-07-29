@@ -225,6 +225,16 @@ class MockLibraryRepository implements LibraryRepository {
         slug: '', nameTh: '', weekday: weekday, readings: const []);
   }
 
+  /// Empty for the same reason ทักษา is: the วงราศี verdicts exist only in
+  /// draft, from one compilation that has not been corroborated, so the
+  /// shipped behaviour is an honest empty state. A test that wants the
+  /// populated path supplies its own.
+  @override
+  Future<AgeWheelReading> ageWheel(int age) async {
+    await Future<void>.delayed(_latency);
+    return AgeWheelReading.empty(age);
+  }
+
   @override
   Future<SymbolStory> story(String slug) async {
     await Future<void>.delayed(_latency);

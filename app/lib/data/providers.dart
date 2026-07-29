@@ -103,6 +103,15 @@ final taksaProvider = FutureProvider.family<TaksaReading, int>(
   (ref, weekday) => ref.watch(libraryRepositoryProvider).taksa(weekday),
 );
 
+/// วงราศีตามอายุ for an age in completed years.
+///
+/// Family-keyed on the age alone. Like ทักษา, the birth date never leaves the
+/// device — and unlike most readings of this kind, the user's sex is not sent
+/// either, because the app does not hold it. Both directions come back.
+final ageWheelProvider = FutureProvider.family<AgeWheelReading, int>(
+  (ref, age) => ref.watch(libraryRepositoryProvider).ageWheel(age),
+);
+
 final symbolStoryProvider = FutureProvider.family<SymbolStory, String>(
   (ref, slug) => ref.watch(libraryRepositoryProvider).story(slug),
 );

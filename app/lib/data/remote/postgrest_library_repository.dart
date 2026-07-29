@@ -73,4 +73,23 @@ class PostgrestLibraryRepository implements LibraryRepository {
     }
     return TaksaReading.fromJson(decoded);
   }
+
+  @override
+  Future<AgeWheelReading> ageWheel(int age) async {
+    final uri = Uri.parse('$baseUrl/rest/v1/rpc/agewheel_age');
+    final body = utf8.encode(jsonEncode({'p_age': age}));
+    final response =
+        await _client.post(uri, headers: _headers, body: body).timeout(_timeout);
+    if (response.statusCode != 200) {
+      throw Exception('agewheel_age returned HTTP ${response.statusCode}');
+    }
+    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    if (decoded is! Map<String, dynamic>) {
+      // SQL NULL — the function rejects an age outside 1–150 rather than
+      // coercing it, and returns null when the wheel symbols are unpublished.
+      // Neither is an error to surface: the screen shows its empty state.
+      return AgeWheelReading.empty(age);
+    }
+    return AgeWheelReading.fromJson(decoded);
+  }
 }

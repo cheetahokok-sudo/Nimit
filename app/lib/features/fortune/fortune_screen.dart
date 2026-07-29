@@ -10,6 +10,7 @@ import '../../core/theme/nimit_theme.dart';
 import '../../core/utils/thai_date.dart';
 import '../../core/widgets/section.dart';
 import '../../data/models/fortune.dart';
+import '../../data/models/library.dart';
 import '../../data/providers.dart';
 import 'celestial_orb.dart';
 
@@ -116,6 +117,8 @@ class _Body extends ConsumerWidget {
 
         if (birth != null) ...[
           _TaksaSection(weekday: birth.effectiveCivilDate.weekday),
+          const SizedBox(height: 18),
+          _AgeWheelSection(age: completedYears(birth.effectiveCivilDate)),
           const SizedBox(height: 18),
           _BirthFacts(birth: birth),
         ] else ...[
@@ -540,6 +543,163 @@ class _Field<T> extends StatelessWidget {
           ),
         ),
       ],
+    );
+  }
+}
+
+/// Completed years between [birthDate] and today — the age convention this app
+/// sends to `api.agewheel_age`.
+///
+/// Completed years is the definition a reader can check against a calendar. The
+/// ตำรา says เท่าจำนวนอายุปัจจุบัน without settling whether the year of birth
+/// counts as year one, and Thai age reckoning sometimes does count it. The
+/// screen states which convention it used rather than leaving the reader to
+/// assume, and if the other one proves right this is the single place it
+/// changes.
+@visibleForTesting
+int completedYears(DateTime birthDate, {DateTime? today}) {
+  final now = today ?? DateTime.now();
+  var years = now.year - birthDate.year;
+  final hadBirthdayThisYear = now.month > birthDate.month ||
+      (now.month == birthDate.month && now.day >= birthDate.day);
+  if (!hadBirthdayThisYear) years -= 1;
+  return years < 0 ? 0 : years;
+}
+
+/// วงราศีตามอายุ — the พรหมชาติ age wheel.
+///
+/// Only the age travels. Notably the user's SEX does not, because the app does
+/// not hold it: the ตำรา counts one way round the circle for men and the other
+/// for women, so both results are fetched and both are shown, labelled. That is
+/// a deliberate choice not to start collecting a second personal attribute for
+/// one feature — and it lets a reader see the ตำรา's own structure rather than
+/// having it silently resolved for them.
+class _AgeWheelSection extends ConsumerWidget {
+  const _AgeWheelSection({required this.age});
+
+  final int age;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final textTheme = Theme.of(context).textTheme;
+    final wheel = ref.watch(ageWheelProvider(age));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader('วงราศีตามอายุ'),
+        const SizedBox(height: 10),
+        wheel.when(
+          loading: () => const SectionCard(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          ),
+          // A fetch failure is not "no reading exists" and must not be dressed
+          // up as one. Same rule as ทักษา.
+          error: (e, _) => const SectionCard(
+            child: DisclaimerText('ยังโหลดคำทำนายไม่ได้ ลองใหม่อีกครั้ง'),
+          ),
+          data: (w) {
+            if (w.male == null && w.female == null) {
+              return SectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('ยังไม่มีตำราในคลังที่ทำนายจากอายุ',
+                        style: textTheme.titleSmall!
+                            .copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 8),
+                    Text(
+                        'อายุ ${w.age} ปีเต็ม คำนวณจากวันเกิดในเครื่อง '
+                        'ส่วนคำทำนายต้องมีตำราที่อ้างอิงได้ก่อน นิมิตจะไม่แต่งขึ้นเอง',
+                        style: textTheme.bodyMedium!.copyWith(height: 1.6)),
+                  ],
+                ),
+              );
+            }
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                SectionCard(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('อายุ ${w.age} ปีเต็ม',
+                          style: textTheme.titleSmall!
+                              .copyWith(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 6),
+                      Text(
+                          'ตำรานับจากรูปเจดีย์ทีละปีจนครบอายุ '
+                          'ผู้ชายนับเวียนขวา ผู้หญิงนับเวียนซ้าย จึงได้คนละรูป',
+                          style: textTheme.bodySmall!.copyWith(
+                              color: NimitColors.inkSoft, height: 1.45)),
+                    ],
+                  ),
+                ),
+                const SizedBox(height: 10),
+                if (w.male != null) ...[
+                  _AgeWheelFigureCard(labelTh: 'ถ้าเป็นชาย', figure: w.male!),
+                  const SizedBox(height: 10),
+                ],
+                if (w.female != null) ...[
+                  _AgeWheelFigureCard(labelTh: 'ถ้าเป็นหญิง', figure: w.female!),
+                  const SizedBox(height: 10),
+                ],
+              ],
+            );
+          },
+        ),
+      ],
+    );
+  }
+}
+
+/// One side of the wheel — the figure and whatever has been published for it.
+class _AgeWheelFigureCard extends StatelessWidget {
+  const _AgeWheelFigureCard({required this.labelTh, required this.figure});
+
+  final String labelTh;
+  final AgeWheelFigure figure;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('$labelTh · ${figure.nameTh}',
+              style: textTheme.titleSmall!
+                  .copyWith(fontWeight: FontWeight.w700, height: 1.5)),
+          const SizedBox(height: 10),
+          if (figure.readings.isEmpty)
+            Text(
+                'ยังไม่เผยแพร่คำทำนายของรูปนี้ เพราะมาจากตำราเล่มเดียว '
+                'ต้องมีฉบับที่สองยืนยันก่อน',
+                style: textTheme.bodyMedium!.copyWith(height: 1.6))
+          else
+            for (final r in figure.readings) ...[
+              Text(r.summaryTh,
+                  style: textTheme.bodyMedium!
+                      .copyWith(height: 1.6, fontWeight: FontWeight.w600)),
+              const SizedBox(height: 8),
+              Text(r.bodyTh,
+                  style: textTheme.bodyMedium!.copyWith(height: 1.6)),
+              const SizedBox(height: 12),
+              const Divider(color: NimitColors.border, height: 1),
+              const SizedBox(height: 10),
+              // Assembled in the model, so a reading cannot reach the screen
+              // without its source.
+              Text('ที่มา: ${r.sourceTh}',
+                  style: textTheme.bodySmall!
+                      .copyWith(color: NimitColors.inkSoft, height: 1.45)),
+            ],
+        ],
+      ),
     );
   }
 }

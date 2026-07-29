@@ -184,3 +184,87 @@ class TaksaEntry {
     );
   }
 }
+
+/// วงราศีตามอายุ — the พรหมชาติ age-wheel verdict, as returned by
+/// `api.agewheel_age`.
+///
+/// The ตำรา counts twelve figures from เจดีย์, one step per year of age, with
+/// men going one way round the circle and women the other. This model carries
+/// BOTH results rather than one, because the app never asks the user's sex —
+/// see the API migration for why. The screen labels the two and shows them
+/// side by side.
+///
+/// [male] and [female] are null when the wheel symbols are not published, and
+/// their [AgeWheelFigure.readings] are empty when the symbols exist but no
+/// reading has cleared the two-source rule. Both are real answers, not errors,
+/// and the screen renders an honest empty state for them.
+class AgeWheelReading {
+  const AgeWheelReading({
+    required this.age,
+    required this.male,
+    required this.female,
+  });
+
+  /// Completed years, matching what the client sent. The ตำรา says
+  /// เท่าจำนวนอายุปัจจุบัน without settling whether the year of birth counts as
+  /// year one, so the screen states which convention it used.
+  final int age;
+
+  final AgeWheelFigure? male;
+  final AgeWheelFigure? female;
+
+  bool get hasAnyReading =>
+      (male?.readings.isNotEmpty ?? false) ||
+      (female?.readings.isNotEmpty ?? false);
+
+  /// True when the figures resolved but carry no published reading — the
+  /// expected state until the compilation is corroborated.
+  bool get hasFiguresOnly =>
+      (male != null || female != null) && !hasAnyReading;
+
+  factory AgeWheelReading.fromJson(Map<String, dynamic> json) {
+    AgeWheelFigure? figure(String key) {
+      final raw = json[key];
+      return raw is Map<String, dynamic> ? AgeWheelFigure.fromJson(raw) : null;
+    }
+
+    return AgeWheelReading(
+      age: (json['age'] as num?)?.toInt() ?? 0,
+      male: figure('male'),
+      female: figure('female'),
+    );
+  }
+
+  static AgeWheelReading empty(int age) =>
+      AgeWheelReading(age: age, male: null, female: null);
+}
+
+/// One figure on the wheel, with whatever readings have been published for it.
+class AgeWheelFigure {
+  const AgeWheelFigure({
+    required this.position,
+    required this.slug,
+    required this.nameTh,
+    required this.readings,
+  });
+
+  /// 1–12, counted from เจดีย์. Provisional: หน้า ๓'s diagram orders the
+  /// figures differently from the numbered list on หน้า ๑–๒, and that is not
+  /// settled. Recorded so the screen can show it and be checked against the
+  /// book rather than trusted.
+  final int position;
+
+  final String slug;
+  final String nameTh;
+  final List<TaksaEntry> readings;
+
+  factory AgeWheelFigure.fromJson(Map<String, dynamic> json) => AgeWheelFigure(
+        position: (json['position'] as num?)?.toInt() ?? 0,
+        slug: json['slug'] as String? ?? '',
+        nameTh: json['nameTh'] as String? ?? '',
+        readings: [
+          for (final r in (json['readings'] as List? ?? const []))
+            TaksaEntry.fromJson(r as Map<String, dynamic>),
+        ],
+      );
+}

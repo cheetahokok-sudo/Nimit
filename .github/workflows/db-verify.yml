@@ -180,6 +180,31 @@ jobs:
           psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/zodiac_v2_month_groups.sql
           psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/zodiac_v2_month_groups.sql
 
+      # The API function the app actually calls. Exercised rather than trusted:
+      # the counting rule is arithmetic, and arithmetic nobody runs is a guess.
+      - name: วงราศีตามอายุ API answers, and fails closed
+        run: |
+          psql "$PGURL" -v ON_ERROR_STOP=1 -t -c "
+            do \$\$
+            declare m text; f text;
+            begin
+              select api.agewheel_age(1)->'male'->>'slug' into m;
+              select api.agewheel_age(1)->'female'->>'slug' into f;
+              if m <> 'age-wheel-chedi' or f <> 'age-wheel-chedi' then
+                raise exception 'age 1 must land on chedi both ways, got % / %', m, f;
+              end if;
+              select api.agewheel_age(2)->'female'->>'slug' into f;
+              if f <> 'age-wheel-naga-king' then
+                raise exception 'age 2 female must step backwards to naga-king, got %', f;
+              end if;
+              if api.agewheel_age(0) is not null or api.agewheel_age(999) is not null then
+                raise exception 'agewheel must fail closed on an out-of-range age';
+              end if;
+              if jsonb_array_length(api.agewheel_age(36)->'male'->'readings') <> 0 then
+                raise exception 'agewheel returned a reading that is still draft';
+              end if;
+            end \$\$;"
+
       - name: Assertion suite (published state)
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/rights_firewall_test.sql
 

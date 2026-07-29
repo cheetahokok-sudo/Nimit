@@ -10,6 +10,7 @@ import 'package:nimit/data/models/lottery.dart';
 import 'package:nimit/data/providers.dart';
 import 'package:nimit/data/repositories/repositories.dart';
 import 'package:nimit/features/fortune/celestial_orb.dart';
+import 'package:nimit/features/fortune/fortune_screen.dart' show completedYears;
 import 'package:nimit/features/lottery/lottery_widgets.dart';
 import 'package:nimit/main.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -278,10 +279,84 @@ void main() {
     expect(find.textContaining('ขยันและรู้งานรอบด้าน'), findsNWidgets(2));
     expect(find.textContaining('ให้นามประจำวันพุธว่า'), findsOneWidget);
     // A reading may never appear without a source line.
-    expect(find.textContaining('ที่มา: พรหมชาติ'), findsOneWidget);
+    // Matched on the ทักษา citation specifically, not on 'ที่มา: พรหมชาติ'
+    // alone: วงราศีตามอายุ also cites พรหมชาติ and renders on this same screen,
+    // so the loose match found two and proved nothing about either.
+    expect(find.textContaining('ที่มา: พรหมชาติ · สุนันท์ วิโรภาส'),
+        findsOneWidget);
     expect(find.textContaining('พ.ศ. 2506'), findsOneWidget);
     // And the empty state must be gone.
     expect(find.text('ยังไม่มีตำราในคลังที่ทำนายจากวันเกิด'), findsNothing);
+  });
+
+  // ── วงราศีตามอายุ ────────────────────────────────────────────────────────
+  //
+  // The wheel is the first reading in the app keyed on AGE rather than on a
+  // birth date component, and the first that deliberately declines to ask the
+  // user's sex: the ตำรา counts one way for men and the other for women, so
+  // both results are fetched and both are shown. These tests hold that shape,
+  // because the moment somebody "simplifies" it into one answer the app has
+  // started guessing something personal about the reader.
+
+  test('the age wheel counting rule matches the ตำรา', () {
+    // อายุ ๑ starts on เจดีย์ for everyone; the directions separate after that.
+    // Mirrors the SQL in api.agewheel_age — if these two ever disagree the
+    // client and server are telling the user different years.
+    int male(int age) => ((age - 1) % 12) + 1;
+    int female(int age) => ((12 - ((age - 1) % 12)) % 12) + 1;
+
+    expect(male(1), 1);
+    expect(female(1), 1);
+    expect(male(2), 2);
+    expect(female(2), 12);
+    expect(male(13), 1, reason: 'the wheel wraps every twelve years');
+    expect(female(13), 1);
+    for (var age = 1; age <= 150; age++) {
+      expect(male(age), inInclusiveRange(1, 12));
+      expect(female(age), inInclusiveRange(1, 12),
+          reason: 'negative modulo must not push หญิง off the wheel');
+    }
+  });
+
+  test('completedYears counts birthdays, not calendar years', () {
+    final today = DateTime(2026, 7, 29);
+    // Birthday already passed this year.
+    expect(completedYears(DateTime(1990, 7, 28), today: today), 36);
+    // Birthday is today — it counts.
+    expect(completedYears(DateTime(1990, 7, 29), today: today), 36);
+    // Birthday still ahead this year, so one fewer.
+    expect(completedYears(DateTime(1990, 7, 30), today: today), 35);
+    // Never negative, whatever the stored date says.
+    expect(completedYears(DateTime(2030, 1, 1), today: today), 0);
+  });
+
+  testWidgets('the age wheel shows both ชาย and หญิง, and withholds drafts',
+      (tester) async {
+    tester.view.physicalSize = const Size(420, 3000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    SharedPreferences.setMockInitialValues(
+        {'nimit.birth.v2': '{"date":"2026-07-29"}'});
+    await pumpApp(tester, library: _StubLibrary());
+    appRouter.go('/fortune');
+    await tester.pumpAndSettle();
+
+    // Both sides are labelled and named. Showing only one would mean the app
+    // had silently decided the reader's sex.
+    expect(find.textContaining('ถ้าเป็นชาย · ราหู'), findsOneWidget);
+    expect(find.textContaining('ถ้าเป็นหญิง · เทวดาขี่เต่า'), findsOneWidget);
+
+    // The published side renders its reading AND its source.
+    expect(find.textContaining('ปีที่ตกราหูเป็นปีไม่ดี'), findsWidgets);
+    expect(find.textContaining('ที่มา: พรหมชาติ · หน้า ๑–๓'), findsOneWidget);
+
+    // The unpublished side says so plainly rather than showing nothing or,
+    // worse, borrowing the other side's verdict.
+    expect(find.textContaining('ต้องมีฉบับที่สองยืนยันก่อน'), findsOneWidget);
+
+    // The age convention is stated, not left for the reader to assume.
+    expect(find.textContaining('ปีเต็ม'), findsWidgets);
   });
 
   testWidgets('no published reading shows the honest empty state, not an error',
@@ -652,6 +727,34 @@ class _StubLibrary implements LibraryRepository {
             sourceTh: 'พรหมชาติ · สุนันท์ วิโรภาส · พ.ศ. 2506 · หน้า ๑๔–๑๗ หมวดคนเกิดวัน',
           ),
         ],
+      );
+
+  /// Serves both sides of the wheel for age 30 with one published verdict on
+  /// the ชาย side only, so the render covers a populated figure AND a figure
+  /// whose readings are still withheld — which is the mixed state the screen
+  /// will actually meet first.
+  @override
+  Future<AgeWheelReading> ageWheel(int age) async => const AgeWheelReading(
+        age: 30,
+        male: AgeWheelFigure(
+          position: 6,
+          slug: 'age-wheel-rahu',
+          nameTh: 'ราหู',
+          readings: [
+            TaksaEntry(
+              bodyTh: 'ตำราว่าปีที่ตกราหูเป็นปีไม่ดี ว่าจะเดือดร้อนใจ',
+              summaryTh: 'ตำราว่าปีที่ตกราหูเป็นปีไม่ดี ใจไม่สงบ',
+              contextNoteTh: 'เป็นความเชื่อตามตำรา ไม่ใช่คำแนะนำทางการแพทย์',
+              sourceTh: 'พรหมชาติ · หน้า ๑–๓ หลักการทำนายตาม ๑๒ ราศี',
+            ),
+          ],
+        ),
+        female: AgeWheelFigure(
+          position: 8,
+          slug: 'age-wheel-deva-on-turtle',
+          nameTh: 'เทวดาขี่เต่า',
+          readings: [],
+        ),
       );
 
   @override

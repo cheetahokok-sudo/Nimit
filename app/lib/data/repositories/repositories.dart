@@ -76,6 +76,11 @@ abstract interface class LibraryRepository {
   /// The ทักษา reading for a weekday (1=Mon..7=Sun). Sends only the day —
   /// never the birth date, which stays on the device.
   Future<TaksaReading> taksa(int weekday);
+
+  /// วงราศีตามอายุ for a given age in completed years. Sends only the age —
+  /// not the birth date, and not the user's sex, which the app never asks for.
+  /// Both the ชาย and หญิง results come back and the screen shows both.
+  Future<AgeWheelReading> ageWheel(int age);
 }
 
 abstract interface class SourcesRepository {
