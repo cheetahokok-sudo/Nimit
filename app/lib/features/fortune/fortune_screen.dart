@@ -197,9 +197,15 @@ class _HeroCard extends ConsumerWidget {
     //
     // So: วันพุธที่ 29 leads, and ขึ้น ๑๕ ค่ำ · เดือนแปดหลัง sit together below at
     // one size, because neither outranks the other.
+    // Thai numerals for the date as well as the lunar day. The wall calendar
+    // actually sets the civil date in Arabic and reserves Thai numerals for the
+    // lunar reckoning, but this card is not a calendar grid — it is the one
+    // reverent line on a screen about ดวง, and it already writes the lunar date
+    // the archaic way. Mixing ๒๙ with 29 on the same card would read as an
+    // oversight rather than a convention.
     final dayLine = todayLunar == null
         ? 'วันนี้'
-        : '${todayLunar.weekdayTh}ที่ ${today.day}';
+        : '${todayLunar.weekdayTh}ที่ ${thaiDigits(today.day)}';
     // Set the way a household ปฏิทินไทย sets it: phase, day, ค่ำ, then the
     // month, separated by spaces rather than punctuation.
     final lunarLine = todayLunar == null

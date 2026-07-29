@@ -473,6 +473,31 @@ void main() {
       }
     });
   }
+  testWidgets('the hero writes its date in Thai numerals', (tester) async {
+    // Asserted as "contains no ASCII digit" rather than against an expected
+    // string, because the content is DateTime.now() and any literal would be
+    // right for one day. The card mixes a civil date with a lunar one and both
+    // must use the same numerals — ๒๙ beside 29 reads as an oversight, not a
+    // convention.
+    tester.view.physicalSize = const Size(420, 1600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    SharedPreferences.setMockInitialValues(
+        {'nimit.birth.v2': '{"date":"2026-07-29"}'});
+    await pumpApp(tester);
+    appRouter.go('/fortune');
+    await tester.pumpAndSettle();
+
+    for (final key in ['hero-date', 'hero-lunar']) {
+      final text = tester.widget<Text>(find.byKey(ValueKey(key))).data!;
+      expect(RegExp(r'[0-9]').hasMatch(text), isFalse,
+          reason: '$key still contains an ASCII digit: "$text"');
+      expect(RegExp(r'[๐-๙]').hasMatch(text), isTrue,
+          reason: '$key rendered no Thai numeral at all: "$text"');
+    }
+  });
+
   testWidgets('the hero card does not overflow at 320 px, orb and all',
       (tester) async {
     // The orbit motif occupies the right of the card, so the text column is
