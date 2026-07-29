@@ -84,16 +84,20 @@ if (-not $SkipSeeds) {
   $env:PGCLIENTENCODING = 'UTF8'
 
   # THIS LIST MUST MATCH .github/workflows/db-verify.yml, IN ORDER.
-  # It drifted badly once (5 of 18 files), which meant a database applied with
-  # this script and a database verified by CI were different databases —
-  # notably lottery_reference_v1.sql was missing, and without it
-  # api.lottery_ingest rejects every payload with "ยังไม่ได้ลงทะเบียนแหล่งข้อมูล
-  # glo-api". If you add a seed, add it in both places.
+  # It has now drifted twice. First time: 5 of 18 files missing, notably
+  # lottery_reference_v1.sql, without which api.lottery_ingest rejects every
+  # payload with "ยังไม่ได้ลงทะเบียนแหล่งข้อมูล glo-api". Second time
+  # (caught 2026-07-29): 17 of 35 missing — everything from dream_symbols_v5
+  # onward, i.e. the entire กระเหม่น p.24, animals, p.11–17 and พรหมชาติ ๒๕๐๖
+  # material. A database applied with this script and a database verified by
+  # CI were different databases, again. If you add a seed, add it in BOTH
+  # places, and put it in the SAME position — order is part of the contract.
   #
   # Order is load-bearing: provenance before content, and publish_v1 before the
   # interpretation sets, because those publish their own rows and need the
-  # work/edition chain published first. All files carry on-conflict guards, so
-  # re-running against a live project is safe. publish_v1 touches only
+  # work/edition chain published first. All files carry on-conflict guards or
+  # stage-and-join inserts, so re-running against a live project is safe — CI
+  # proves it by applying several of these twice. publish_v1 touches only
   # work/edition/symbol — it will NOT publish draft interpretations.
   $seeds = @(
     'supabase/seed.sql',
@@ -113,8 +117,24 @@ if (-not $SkipSeeds) {
     'supabase/seeds/sources_v6_pramuan.sql',
     'supabase/seeds/dream_symbols_v4_body_omens.sql',
     'supabase/seeds/interpretations_v4_krachamen.sql',
+    'supabase/seeds/dream_symbols_v5_krachamen_p24.sql',
+    'supabase/seeds/interpretations_v6_krachamen_p24.sql',
+    'supabase/seeds/interpretations_v7_khamthamnaifan.sql',
     'supabase/seeds/sources_v7_owned_library.sql',
-    'supabase/seeds/interpretations_v5_owned_books_template.sql'
+    'supabase/seeds/interpretations_v5_owned_books_template.sql',
+    'supabase/seeds/dream_symbols_v6_animals.sql',
+    'supabase/seeds/interpretations_v8_retire_placeholders.sql',
+    'supabase/seeds/dream_symbols_v7_p11_p12.sql',
+    'supabase/seeds/interpretations_v9_p11_p12.sql',
+    'supabase/seeds/interpretations_v10_p13.sql',
+    'supabase/seeds/publish_v2_numbers.sql',
+    'supabase/seeds/dream_symbols_v8_p14_p17.sql',
+    'supabase/seeds/interpretations_v11_p14_p17.sql',
+    'supabase/seeds/taksa_v1_phrommachat_2506.sql',
+    'supabase/seeds/sources_v8_phrommachat_owned.sql',
+    'supabase/seeds/zodiac_v1_phrommachat_owned.sql',
+    'supabase/seeds/agewheel_v1_phrommachat_owned.sql',
+    'supabase/seeds/zodiac_v2_month_groups.sql'
   )
   foreach ($s in $seeds) {
     Write-Host "  applying $s"
