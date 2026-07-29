@@ -43,6 +43,41 @@ where i.status = 'published'
   and w.rights <> 'public_domain'
   and coalesce(array_length(i.corroborating_edition_ids, 1), 0) = 0;
 
+-- ── blocker: a published reading from a modern COMPILATION, uncorroborated ─
+-- The blind spot in the check directly above. That one exempts public-domain
+-- works, which is right for a faithful reprint of an old manuscript — its whole
+-- content is the old text. It is wrong for a ฉบับรวมเล่ม, where a living
+-- compiler's commentary, arrangement and worked examples sit interleaved with
+-- the traditional ตำรา and cannot be told apart by eye. Such an edition would
+-- otherwise publish uncorroborated on the strength of the anonymous work's
+-- expired copyright, attaching a public-domain provenance label to somebody's
+-- copyrighted prose.
+--
+-- Same remedy as single_source_copyrighted, and deliberately the same severity:
+-- the risk being managed is a false provenance claim, which this project treats
+-- as worse than a rights slip, not better.
+insert into editorial.review_finding
+  (interpretation_id, check_code, severity, message_th, detail)
+select i.id, 'mixed_compilation_uncorroborated', 'blocker',
+  'เผยแพร่จากฉบับรวมเล่มที่มีคำอธิบายของผู้เรียบเรียงปนอยู่กับตำราเก่า '
+  || 'โดยยังไม่บันทึกแหล่งที่สอง — แม้งานต้นทางจะพ้นลิขสิทธิ์แล้ว '
+  || 'ก็แยกส่วนที่ผู้เรียบเรียงเขียนเองไม่ได้ ต้องเพิ่ม corroborating_edition_ids '
+  || 'หรือถอนกลับเป็นฉบับร่าง',
+  jsonb_build_object('symbol', s.name_th, 'edition', e.label_th,
+                     'citekey', e.citekey, 'work_rights', w.rights::text,
+                     'locator', p.locator)
+from content.interpretation i
+join content.passage p on p.id = i.passage_id
+join content.edition e on e.id = p.edition_id
+join content.work    w on w.id = e.work_id
+join content.symbol  s on s.id = i.symbol_id
+where i.status = 'published'
+  and e.has_modern_editorial_layer
+  and coalesce(array_length(i.corroborating_edition_ids, 1), 0) = 0
+  -- Not a duplicate of the check above: that one already catches the
+  -- copyrighted-work case, and one problem should produce one finding.
+  and w.rights = 'public_domain';
+
 -- ── blocker: sensitive content published without recorded clearance ────────
 -- A CHECK constraint already makes this impossible to insert. The sweep exists
 -- because constraints can be dropped, and a silent drop is exactly the failure

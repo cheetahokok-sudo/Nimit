@@ -140,6 +140,46 @@ jobs:
           psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/interpretations_v10_p13.sql
           psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/publish_v2_numbers.sql
 
+      # Closes the dream section of ประมวลตำราทำนาย (หน้า ๑๔–๑๗), then opens the
+      # first astrology-taksa content from พรหมชาติ ๒๕๐๖.
+      #
+      # These three shipped without a CI step. That is the failure mode this
+      # gate exists to prevent: taksa_v1 publishes readings and asserts its own
+      # rights invariants, so an upstream change breaking it would have been
+      # caught by nothing until it reached the live database by hand.
+      - name: Apply p.14–17 lexicon, content, and ทักษาวันเกิด
+        run: |
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/dream_symbols_v8_p14_p17.sql
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/interpretations_v11_p14_p17.sql
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/taksa_v1_phrommachat_2506.sql
+
+      # The seed that registers a reading entitlement must be idempotent, or
+      # re-running it duplicates the holding that documents why our editorial
+      # work on a copyrighted book is lawful.
+      - name: Apply owned พรหมชาติ registration (twice — must be idempotent)
+        run: |
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/sources_v8_phrommachat_owned.sql
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/sources_v8_phrommachat_owned.sql
+
+      # First content from the owned compilation, and the first ever in
+      # folk-brahmajati. Applied twice for the same reason as above: it stages a
+      # temp table and inserts through joins, so a second run must be a no-op
+      # rather than a duplicate cycle.
+      - name: Apply ปีนักษัตร lexicon and draft readings (twice)
+        run: |
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/zodiac_v1_phrommachat_owned.sql
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/zodiac_v1_phrommachat_owned.sql
+
+      # The age wheel (หน้า ๑–๓) is independent of the zodiac material; the
+      # เดือนเกิด subdivisions build on zodiac_v1's symbols and must follow it.
+      # Both applied twice: each stages a temp table and inserts through joins.
+      - name: Apply วงราศีตามอายุ and เดือนเกิด subdivisions (twice)
+        run: |
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/agewheel_v1_phrommachat_owned.sql
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/agewheel_v1_phrommachat_owned.sql
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/zodiac_v2_month_groups.sql
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/zodiac_v2_month_groups.sql
+
       - name: Assertion suite (published state)
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/rights_firewall_test.sql
 
