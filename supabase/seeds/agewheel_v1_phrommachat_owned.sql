@@ -53,16 +53,52 @@
 -- rather than RASI, so that real ราศี content arriving later from จักรทีปนี or
 -- คัมภีร์โหราศาสตร์ cannot be confused with these.
 --
--- ── ORDER ──────────────────────────────────────────────────────────────────
+-- ── ORDER, AND A TRANSCRIPTION THAT INVENTED ITS EVIDENCE ──────────────────
 --
--- The sequence below is the book's own numbering ๑–๑๒ from หน้า ๑–๒, which is
--- explicit. หน้า ๓ carries the wheel diagram, and its figures are captioned in a
--- different order; whether that reflects the true circular arrangement or just
--- reading order around an image cannot be told from a transcription. The
--- numbered list is used, and the discrepancy is recorded in the passage note
--- rather than resolved by guessing — the counting rule depends on the order, so
--- this must be settled from the image before the wheel is wired to the app.
+-- The sequence below is the book's own numbering ๑–๑๒ from หน้า ๑–๒, stated
+-- outright in the text. That is now the ONLY evidence of order, and the reason
+-- is worth recording.
+--
+-- The first version of this file said หน้า ๓ carried a wheel diagram whose
+-- figures were captioned in a DIFFERENT order, and held the counting rule as
+-- unverified because of it. That conflict did not exist. หน้า ๓ is blank in
+-- this scan, and the machine transcription's '[ภาพประกอบ: วงกลมแสดงตำแหน่ง...]'
+-- block — twelve figure names and all — was fabricated.
+--
+-- The book itself points at that page: หน้า ๒ closes with หมายเหตุ : ดูภาพประกอบ
+-- หน้า ๓. So the diagram is real in the printed volume and simply missing from
+-- the scan. What cannot be confirmed is whether the numbered order matches the
+-- circular arrangement; nothing contradicts it, and counting ๑, ๒, ๓ round a
+-- circle is the ordinary reading, so it is used and labelled as unconfirmed
+-- rather than treated as settled.
+--
+-- ── FOUR FIGURE NAMES WERE WRONG, FROM THE SAME TRANSCRIPTION ──────────────
+--
+-- Read off the page image of หน้า ๒, positions ๘–๑๑ are:
+--
+--   ๘  เทวดาขี่เต่า   (transcribed as เทวดาขี่ม้า)
+--   ๙  คนต้องขื่อคา   (transcribed as คนต้องเชือก)
+--   ๑๐ พ่อมด        (transcribed as หอคอย)
+--   ๑๑ แม่มด        (transcribed as แม่หม้าย)
+--
+-- พ่อมด and แม่มด are a matched pair, which is a good sign the corrected
+-- reading is right and the transcription's หอคอย/แม่หม้าย were not near-misses
+-- but substitutions. The concept keys changed with them; the retired ones are
+-- cleaned up below because they never reached a live database, only CI.
+--
+-- The bodies for ๘–๑๒ are also rewritten from the page rather than from the
+-- transcription, which lost ชะตากำลังดี มีผู้มาอ่อนน้อมยอมเป็นคนรับใช้ from ๑๒
+-- to [อ่านไม่ชัด] and turned บริวาร into ธุระ in ๘.
 -- ============================================================================
+
+-- ---------------------------------------------------------------------------
+-- Retire the four concept keys that came from the fabricated transcription.
+-- Safe: they were never published and never left CI, and interpretation
+-- cascades from symbol. Guarded to the exact four so it can never widen.
+-- ---------------------------------------------------------------------------
+delete from content.symbol
+ where concept_key in ('AGEWHEEL_DEVA_ON_HORSE', 'AGEWHEEL_BOUND_MAN',
+                       'AGEWHEEL_WATCHTOWER', 'AGEWHEEL_WIDOW');
 
 drop table if exists tmp_agewheel;
 create temporary table tmp_agewheel (
@@ -99,26 +135,33 @@ insert into tmp_agewheel values
  'ตำราว่าปีที่ตกฉัตรทองเป็นปีดีมาก ว่าจะมีเกียรติยศปรากฏในหมู่คนทั่วไป '
  'ไปสารทิศใดก็จะมีผู้คอยอุปถัมภ์ค้ำชู ไม่เดือดร้อน',
  'ตำราว่าปีที่ตกฉัตรทองเป็นปีดีมาก มีชื่อเสียงเป็นที่รู้จัก และมีคนคอยช่วยเหลือ'),
-(8, 'AGEWHEEL_DEVA_ON_HORSE', 'age-wheel-deva-on-horse', 'เทวดาขี่ม้า', 'the deva on horseback', 'ปานกลาง',
- 'ตำราว่าปีที่ตกเทวดาขี่ม้าเป็นปีค่อนข้างดี ว่าจะมีผู้คอยช่วยเหลือในหน้าที่การงาน '
- 'แต่ให้ระวังธุระที่จะนำความเดือดร้อนมาให้ จัดเป็นปีดีปานกลาง',
- 'ตำราว่าปีที่ตกเทวดาขี่ม้าค่อนข้างดี มีคนช่วยเรื่องงาน แต่ให้ระวังเรื่องที่จะพาให้เดือดร้อน'),
-(9, 'AGEWHEEL_BOUND_MAN', 'age-wheel-bound-man', 'คนต้องเชือก', 'the bound man', 'ร้าย',
- 'ตำราว่าปีที่ตกคนต้องเชือกเป็นปีไม่ดี ว่าถึงคราวเคราะห์กรรมบางประการ '
- 'จะมีเรื่องวุ่นวายทั้งกับตนเองและครอบครัว และจะไม่มีความสุขกายสบายใจ',
- 'ตำราว่าปีที่ตกคนต้องเชือกเป็นปีไม่ดี มีเรื่องวุ่นวายทั้งกับตัวเองและทางบ้าน'),
-(10, 'AGEWHEEL_WATCHTOWER', 'age-wheel-watchtower', 'หอคอย', 'the watchtower', 'ปานกลาง',
- 'ตำราว่าปีที่ตกหอคอยเป็นปีดีปานกลาง ว่าจะมีผู้มาขอความช่วยเหลือและได้รับอาสางานผู้ใหญ่ '
- 'จะได้ดีอยู่บ้าง แต่ความสุขไม่มากนัก และมักมีเรื่องกังวลจุกจิกพอประมาณ',
- 'ตำราว่าปีที่ตกหอคอยดีปานกลาง ได้รับงานและได้ดีอยู่บ้าง แต่มีเรื่องกวนใจจุกจิก'),
-(11, 'AGEWHEEL_WIDOW', 'age-wheel-widow', 'แม่หม้าย', 'the widow', 'ปานกลาง',
- 'ตำราว่าปีที่ตกแม่หม้ายเป็นปีดีปานกลาง ว่าจะมีผู้นำสิ่งดีมาให้ '
- 'แต่ต้องแลกด้วยความช่วยเหลือจากตนเอง จะสบายใจพอประมาณแต่ก็เหนื่อย',
- 'ตำราว่าปีที่ตกแม่หม้ายดีปานกลาง มีสิ่งดีเข้ามาแต่ต้องออกแรงแลก'),
+(8, 'AGEWHEEL_DEVA_ON_TURTLE', 'age-wheel-deva-on-turtle', 'เทวดาขี่เต่า', 'the deva on a turtle', 'ปานกลาง',
+ 'ตำราว่าปีที่ตกเทวดาขี่เต่าเป็นปีค่อนข้างดี ว่าจะมีผู้คอยช่วยเหลือในหน้าที่การงาน '
+ 'แต่ให้ระวังบริวารจะนำความเดือดร้อนมาให้ จัดเป็นปีดีปานกลาง',
+ 'ตำราว่าปีที่ตกเทวดาขี่เต่าค่อนข้างดี มีคนช่วยเรื่องงาน แต่ให้ระวังบริวารจะพาให้เดือดร้อน'),
+(9, 'AGEWHEEL_CANGUE', 'age-wheel-cangue', 'คนต้องขื่อคา', 'the man in the cangue', 'ร้าย',
+ 'ตำราว่าปีที่ตกคนต้องขื่อคาเป็นปีไม่ดี ว่าถึงคราวเคราะห์หามยามร้าย '
+ 'จะมีเรื่องวุ่นวายทั้งกับตนเองและครอบครัว จะถูกจองจำ '
+ 'หรือไม่มีความสุขกายสบายใจเลย',
+ 'ตำราว่าปีที่ตกคนต้องขื่อคาเป็นปีไม่ดี เคราะห์หามยามร้าย '
+ 'มีเรื่องวุ่นวายทั้งกับตัวเองและทางบ้าน'),
+(10, 'AGEWHEEL_SORCERER', 'age-wheel-sorcerer', 'พ่อมด', 'the sorcerer', 'ปานกลาง',
+ 'ตำราว่าปีที่ตกพ่อมดเป็นปีดีปานกลาง ว่าจะมีผู้มาขอความช่วยเหลือ '
+ 'และการรับอาสาเจ้านายจะได้ดี แต่ความสุขไม่มากนัก '
+ 'และจะทุกข์กายทุกข์ใจอยู่พอประมาณ',
+ 'ตำราว่าปีที่ตกพ่อมดดีปานกลาง มีคนมาขอให้ช่วย รับอาสาเจ้านายแล้วได้ดี '
+ 'แต่ก็เหนื่อยกายเหนื่อยใจอยู่บ้าง'),
+(11, 'AGEWHEEL_WITCH', 'age-wheel-witch', 'แม่มด', 'the witch', 'ปานกลาง',
+ 'ตำราว่าปีที่ตกแม่มดเป็นปีดีปานกลาง ว่าจะมีผู้นำลาภมาให้ '
+ 'แต่ต้องแลกเปลี่ยนกับความช่วยเหลือจากตนเอง '
+ 'จะสบายใจพอประมาณแต่ก็จะเหนื่อยใจ',
+ 'ตำราว่าปีที่ตกแม่มดดีปานกลาง มีลาภเข้ามาแต่ต้องออกแรงแลก และเหนื่อยใจอยู่บ้าง'),
 (12, 'AGEWHEEL_NAGA_KING', 'age-wheel-naga-king', 'นาคราช', 'the naga king', 'ปานกลาง',
- 'ตำราว่าปีที่ตกนาคราชเป็นปีดีปานกลาง ว่าจะมีอำนาจวาสนา '
- 'และได้ลาภจากบริวารและผู้ใหญ่ แต่ให้ระวังคำพูดและอารมณ์ของตนให้มาก',
- 'ตำราว่าปีที่ตกนาคราชดีปานกลาง มีอำนาจและได้ลาภจากคนรอบตัว แต่ให้ระวังคำพูดและอารมณ์');
+ 'ตำราว่าปีที่ตกนาคราชเป็นปีดีปานกลาง ว่าจะมีอำนาจวาสนา ชะตากำลังดี '
+ 'มีผู้มาอ่อนน้อมยอมเป็นคนรับใช้ และจะได้ลาภจากบริวารและผู้ใหญ่ '
+ 'แต่ให้ระวังคำพูดและอารมณ์ของตนให้มาก',
+ 'ตำราว่าปีที่ตกนาคราชดีปานกลาง ชะตากำลังดี มีคนยอมอ่อนน้อม '
+ 'ได้ลาภจากคนรอบตัว แต่ให้ระวังคำพูดและอารมณ์');
 
 -- ---------------------------------------------------------------------------
 -- Check the payload before writing. Twelve positions, each used once.
@@ -159,11 +202,12 @@ select e.id, 'หน้า ๑–๓ หลักการทำนายตา�
   'นับไปทีละรูปจนครบเท่าจำนวนอายุปัจจุบัน แล้วถือคำทำนายของรูปที่อายุไปตกนั้น '
   'หน้า ๓ เป็นแผนภาพวงราศีพร้อมชื่อรูปทั้งสิบสอง',
   'เจ้าของโครงการ อ่านจากฉบับสแกน',
-  'ถอดครั้งแรกจากฉบับสแกน ยังไม่ได้ทานซ้ำ | '
-  'ลำดับที่ใช้คือลำดับตัวเลข ๑–๑๒ ที่ตำราระบุไว้ในหน้า ๑–๒ '
-  'ส่วนแผนภาพหน้า ๓ เรียงชื่อรูปในลำดับที่ต่างออกไป ยังบอกไม่ได้ว่าเป็นลำดับจริงบนวง '
-  'หรือเป็นเพียงลำดับการอ่านรอบภาพ — ต้องดูจากภาพต้นฉบับก่อนนำวิธีนับไปใช้ในแอป | '
-  'ข้อความกลางวงในแผนภาพ และบางวลีในข้อ ๘ ๑๑ ๑๒ อ่านไม่ชัด',
+  'ทานหน้า ๑–๒ กับภาพหน้าจริงแล้ว แก้ชื่อรูปข้อ ๘–๑๑ และคำทำนายข้อ ๘ กับ ๑๒ '
+  'ตามที่อ่านได้จากภาพ | '
+  'ลำดับที่ใช้คือลำดับตัวเลข ๑–๑๒ ที่ตำราระบุไว้ในหน้า ๑–๒ ซึ่งเป็นหลักฐานเดียวที่มี | '
+  'หน้า ๒ ปิดท้ายว่า "ดูภาพประกอบหน้า ๓" แต่หน้า ๓ ในฉบับสแกนนี้เป็นหน้าว่าง '
+  'จึงยังยืนยันไม่ได้ว่าลำดับตัวเลขตรงกับการเรียงรูปบนวงจริงหรือไม่ '
+  'ไม่มีหลักฐานใดขัดแย้ง จึงใช้ลำดับตัวเลขไปก่อนและระบุไว้ว่ายังไม่ยืนยัน',
   'draft'
 from content.edition e where e.citekey = 'phrommachat-owned'
 on conflict (edition_id, locator, sequence) do nothing;

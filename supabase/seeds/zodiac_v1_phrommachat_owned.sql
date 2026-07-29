@@ -344,11 +344,19 @@ begin
       '(is sources_v8_phrommachat_owned.sql applied?)', got;
   end if;
 
+  -- Scoped to the year passages this file owns, NOT to every reading on a
+  -- ZODIAC_* symbol. zodiac_v2 legitimately adds twenty more against the
+  -- เดือนเกิด passages, and a global count here made this seed fail on any
+  -- re-run once v2 had been applied — which is exactly what a re-run must
+  -- survive, since that is how the live database gets updated.
   select count(*) into got from content.interpretation i
     join content.symbol s on s.id = i.symbol_id
-   where s.concept_key like 'ZODIAC_%';
+    join content.passage p on p.id = i.passage_id
+    join content.edition e on e.id = p.edition_id
+   where s.concept_key like 'ZODIAC_%' and e.citekey = 'phrommachat-owned'
+     and p.sequence in (12,20,28,36,44);
   if got <> 5 then
-    raise exception 'zodiac v1: expected 5 readings, found %', got;
+    raise exception 'zodiac v1: expected 5 year readings, found %', got;
   end if;
 
   -- Nothing here may publish on one book's say-so. The two-source rule reaches
