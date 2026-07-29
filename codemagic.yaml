@@ -9,8 +9,14 @@
 # accident, only refusable on purpose.
 #
 # SETUP REQUIRED IN THE CODEMAGIC UI (once):
-#   * App Store Connect integration named `nimit_asc` — an ASC API key with
-#     App Manager role. Used for signing AND TestFlight upload.
+#   * An App Store Connect API key with App Manager role, added under
+#     Settings → Integrations → Developer Portal → Manage keys. Used for
+#     signing AND TestFlight upload. The key referenced below is named
+#     `GrowSense ASC Key` — an ASC API key authorises an Apple TEAM, not one
+#     app, and นิมิต ships under the same team, so it already covers
+#     app.nimit.nimit. The name is another product's only because keys cannot
+#     be renamed in the UI; if นิมิต ever moves to its own Apple account, add
+#     a key here and change the one line below.
 #   * Environment group `nimit_backend` holding:
 #       NIMIT_REMOTE        true
 #       SUPABASE_URL        https://<project>.supabase.co
@@ -31,7 +37,7 @@ workflows:
     max_build_duration: 60
 
     integrations:
-      app_store_connect: nimit_asc
+      app_store_connect: 'GrowSense ASC Key'
 
     environment:
       groups:
