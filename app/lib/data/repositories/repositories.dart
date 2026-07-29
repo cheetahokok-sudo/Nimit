@@ -81,6 +81,11 @@ abstract interface class LibraryRepository {
   /// not the birth date, and not the user's sex, which the app never asks for.
   /// Both the ชาย and หญิง results come back and the screen shows both.
   Future<AgeWheelReading> ageWheel(int age);
+
+  /// ปีนักษัตร for a zodiac index (0=ชวด..11=กุน) and Thai lunar month
+  /// (1=อ้าย..12, null for year-only). Sends two small integers — never the
+  /// birth date they were derived from.
+  Future<ZodiacYearReading> zodiacYear(int index, int? lunarMonth);
 }
 
 abstract interface class SourcesRepository {

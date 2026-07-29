@@ -227,9 +227,13 @@ void main() {
 
     expect(find.text('ขึ้น ๑๕ ค่ำ เดือนแปดหลัง'), findsOneWidget);
     expect(find.text('อธิกมาส · ปกติวาร'), findsOneWidget);
-    // The computed lookup keys a future ตำรา reading will be found by.
+    // The computed lookup keys a ตำรา reading is found by. These are no longer
+    // only facts on a list: ปีนักษัตร now heads its own reading section too, so
+    // the year name appears twice — once as the computed fact and once as the
+    // subject of the reading it keys. Both are wanted; only one would mean a
+    // section had silently stopped rendering.
     expect(find.text('วันพุธ'), findsOneWidget);
-    expect(find.text('ปีมะเมีย'), findsOneWidget);
+    expect(find.text('ปีมะเมีย'), findsNWidgets(2));
     // เดือนแปดหลัง is the one thing a user cannot work out unaided.
     expect(find.textContaining('ไม่ใช่เดือนเก้า'), findsOneWidget);
 
@@ -328,6 +332,34 @@ void main() {
     expect(completedYears(DateTime(1990, 7, 30), today: today), 35);
     // Never negative, whatever the stored date says.
     expect(completedYears(DateTime(2030, 1, 1), today: today), 0);
+  });
+
+  testWidgets('ปีนักษัตร keeps the year reading and the month one apart',
+      (tester) async {
+    // In this ตำรา the เดือนเกิด group can invert the year's verdict — ปีชวด
+    // born เดือน ๕–๗ is promised สติปัญญามาก and born เดือน ๘–๑๐ the opposite.
+    // Merging the two into one undifferentiated stack would present a
+    // refinement that applies to a quarter of people as the general case.
+    tester.view.physicalSize = const Size(420, 3600);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.resetPhysicalSize);
+
+    SharedPreferences.setMockInitialValues(
+        {'nimit.birth.v2': '{"date":"2026-07-29"}'});
+    await pumpApp(tester, library: _StubLibrary());
+    appRouter.go('/fortune');
+    await tester.pumpAndSettle();
+
+    expect(find.text('คำทำนายตามปีนักษัตร'), findsOneWidget);
+    // Each kind of reading is labelled as what it is.
+    expect(find.text('คำทำนายประจำปีเกิด'), findsOneWidget);
+    expect(find.text('คำทำนายย่อยตามเดือนเกิด'), findsOneWidget);
+    // Both carry their own citation, and they are different pages.
+    expect(find.textContaining('หน้า ๑๒–๑๓ คนเกิดปีชวด'), findsOneWidget);
+    expect(find.textContaining('หน้า ๑๔–๑๕ ปีชวดแบ่งตามเดือนเกิด'),
+        findsOneWidget);
+    // With readings present the withheld notice must be gone.
+    expect(find.textContaining('ยังไม่เผยแพร่คำทำนายตามปีนักษัตร'), findsNothing);
   });
 
   testWidgets('the age wheel shows both ชาย and หญิง, and withholds drafts',
@@ -755,6 +787,34 @@ class _StubLibrary implements LibraryRepository {
           nameTh: 'เทวดาขี่เต่า',
           readings: [],
         ),
+      );
+
+  /// A year reading AND a month refinement, so the render proves the two are
+  /// distinguishable. In this ตำรา the month can invert the year's verdict, so
+  /// a screen that merged them would be telling the user something false.
+  @override
+  Future<ZodiacYearReading> zodiacYear(int index, int? lunarMonth) async =>
+      const ZodiacYearReading(
+        index: 0,
+        lunarMonth: 6,
+        slug: 'year-rat',
+        nameTh: 'คนเกิดปีชวด',
+        yearReadings: [
+          TaksaEntry(
+            bodyTh: 'ตำราจัดปีชวดเป็นธาตุน้ำ ชั้นมาเทวดาผู้ชาย',
+            summaryTh: 'ตำราว่าคนปีชวด ธาตุน้ำ พูดตรงและทำตามใจตัว',
+            contextNoteTh: 'เป็นความเชื่อตามตำรา',
+            sourceTh: 'พรหมชาติ · หน้า ๑๒–๑๓ คนเกิดปีชวด',
+          ),
+        ],
+        monthReadings: [
+          TaksaEntry(
+            bodyTh: 'ตำราจัดผู้เกิดปีชวด เดือน ๕–๗ เป็นหนูท้องขาว',
+            summaryTh: 'ตำราว่าคนปีชวดที่เกิดเดือน ๕–๗ เป็นหนูท้องขาว ปัญญาดี',
+            contextNoteTh: 'เป็นคำทำนายย่อยตามเดือนเกิด',
+            sourceTh: 'พรหมชาติ · หน้า ๑๔–๑๕ ปีชวดแบ่งตามเดือนเกิด',
+          ),
+        ],
       );
 
   @override

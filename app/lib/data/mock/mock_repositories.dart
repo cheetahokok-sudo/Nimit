@@ -235,6 +235,15 @@ class MockLibraryRepository implements LibraryRepository {
     return AgeWheelReading.empty(age);
   }
 
+  /// Empty for the same reason as the other two: the ปีนักษัตร readings are
+  /// draft until the compilation is corroborated, so the shipped behaviour is
+  /// an honest empty state.
+  @override
+  Future<ZodiacYearReading> zodiacYear(int index, int? lunarMonth) async {
+    await Future<void>.delayed(_latency);
+    return ZodiacYearReading.empty(index, lunarMonth);
+  }
+
   @override
   Future<SymbolStory> story(String slug) async {
     await Future<void>.delayed(_latency);

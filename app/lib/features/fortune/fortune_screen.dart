@@ -118,6 +118,14 @@ class _Body extends ConsumerWidget {
         if (birth != null) ...[
           _TaksaSection(weekday: birth.effectiveCivilDate.weekday),
           const SizedBox(height: 18),
+          _ZodiacYearSection(
+            index: birth.zodiacIndex,
+            lunarMonth: birth.lunarMonthNumber,
+            yearNameTh: birth.zodiacYearTh,
+            boundaryNoteTh:
+                birth.zodiacIsBoundarySensitive ? birth.zodiacNoteTh : null,
+          ),
+          const SizedBox(height: 18),
           _AgeWheelSection(age: completedYears(birth.effectiveCivilDate)),
           const SizedBox(height: 18),
           _BirthFacts(birth: birth),
@@ -564,6 +572,147 @@ int completedYears(DateTime birthDate, {DateTime? today}) {
       (now.month == birthDate.month && now.day >= birthDate.day);
   if (!hadBirthdayThisYear) years -= 1;
   return years < 0 ? 0 : years;
+}
+
+/// ปีนักษัตร — the พรหมชาติ birth-year reading and its เดือนเกิด refinement.
+///
+/// Two integers travel: the นักษัตร index and the lunar month. Both are already
+/// computed on the device from a birth date that stays there.
+///
+/// The year reading and the month reading are shown as separate cards, and the
+/// month one is labelled with the group it belongs to. In this ตำรา the month
+/// can invert the year's verdict — ปีชวด born เดือน ๕–๗ is promised สติปัญญามาก,
+/// born เดือน ๘–๑๐ it is promised ความเดือดร้อน — so presenting them as one
+/// undifferentiated stack would be a real misreading, not a layout choice.
+class _ZodiacYearSection extends ConsumerWidget {
+  const _ZodiacYearSection({
+    required this.index,
+    required this.lunarMonth,
+    required this.yearNameTh,
+    required this.boundaryNoteTh,
+  });
+
+  final int index;
+  final int lunarMonth;
+
+  /// Computed on the device, so the section can name the year even when the
+  /// server has nothing published for it.
+  final String yearNameTh;
+
+  /// Set only when the two นักษัตร reckonings can disagree for this birth —
+  /// a January–April birth. Shown rather than resolved.
+  final String? boundaryNoteTh;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final textTheme = Theme.of(context).textTheme;
+    final zodiac =
+        ref.watch(zodiacYearProvider((index: index, lunarMonth: lunarMonth)));
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        const SectionHeader('คำทำนายตามปีนักษัตร'),
+        const SizedBox(height: 10),
+        zodiac.when(
+          loading: () => const SectionCard(
+            child: Center(
+              child: Padding(
+                padding: EdgeInsets.symmetric(vertical: 12),
+                child: CircularProgressIndicator(),
+              ),
+            ),
+          ),
+          error: (e, _) => const SectionCard(
+            child: DisclaimerText('ยังโหลดคำทำนายไม่ได้ ลองใหม่อีกครั้ง'),
+          ),
+          data: (z) => Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              SectionCard(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('ปี$yearNameTh',
+                        style: textTheme.titleSmall!
+                            .copyWith(fontWeight: FontWeight.w700)),
+                    if (boundaryNoteTh != null) ...[
+                      const SizedBox(height: 6),
+                      Text(boundaryNoteTh!,
+                          style: textTheme.bodySmall!.copyWith(
+                              color: NimitColors.inkSoft, height: 1.45)),
+                    ],
+                    if (!z.hasAnyReading) ...[
+                      const SizedBox(height: 8),
+                      Text(
+                          'ยังไม่เผยแพร่คำทำนายตามปีนักษัตร '
+                          'เพราะมาจากตำราเล่มเดียว ต้องมีฉบับที่สองยืนยันก่อน',
+                          style: textTheme.bodyMedium!.copyWith(height: 1.6)),
+                    ],
+                  ],
+                ),
+              ),
+              if (z.yearReadings.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                for (final r in z.yearReadings) ...[
+                  _ReadingCard(labelTh: 'คำทำนายประจำปีเกิด', entry: r),
+                  const SizedBox(height: 10),
+                ],
+              ],
+              if (z.monthReadings.isNotEmpty) ...[
+                const SizedBox(height: 10),
+                for (final r in z.monthReadings) ...[
+                  _ReadingCard(
+                      labelTh: 'คำทำนายย่อยตามเดือนเกิด', entry: r),
+                  const SizedBox(height: 10),
+                ],
+              ],
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+/// A reading with the label that says which KIND of reading it is, then the
+/// citation. Shared so a year reading and a month refinement cannot drift into
+/// looking identical.
+class _ReadingCard extends StatelessWidget {
+  const _ReadingCard({required this.labelTh, required this.entry});
+
+  final String labelTh;
+  final TaksaEntry entry;
+
+  @override
+  Widget build(BuildContext context) {
+    final textTheme = Theme.of(context).textTheme;
+    return SectionCard(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(labelTh,
+              style: textTheme.bodySmall!.copyWith(
+                  color: NimitColors.inkSoft,
+                  fontWeight: FontWeight.w700,
+                  height: 1.45)),
+          const SizedBox(height: 8),
+          Text(entry.summaryTh,
+              style: textTheme.bodyMedium!
+                  .copyWith(height: 1.6, fontWeight: FontWeight.w600)),
+          const SizedBox(height: 8),
+          Text(entry.bodyTh,
+              style: textTheme.bodyMedium!.copyWith(height: 1.6)),
+          const SizedBox(height: 12),
+          const Divider(color: NimitColors.border, height: 1),
+          const SizedBox(height: 10),
+          Text('ที่มา: ${entry.sourceTh}',
+              style: textTheme.bodySmall!
+                  .copyWith(color: NimitColors.inkSoft, height: 1.45)),
+        ],
+      ),
+    );
+  }
 }
 
 /// วงราศีตามอายุ — the พรหมชาติ age wheel.

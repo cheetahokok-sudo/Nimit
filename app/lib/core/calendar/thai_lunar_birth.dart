@@ -168,7 +168,23 @@ class ThaiLunarBirth {
   /// For a birth in January–April the two conventions disagree, which is why
   /// [zodiacNoteTh] says so on screen instead of presenting one answer as the
   /// answer. A ตำรา that specifies its own reckoning would override this.
-  String get zodiacYearTh => _zodiacNames[(lunar.beYear + 5) % 12];
+  String get zodiacYearTh => _zodiacNames[zodiacIndex];
+
+  /// The same reckoning as [zodiacYearTh], as an index 0=ชวด .. 11=กุน.
+  ///
+  /// This is what `api.zodiac_year` takes. Sending the index rather than the
+  /// Thai name keeps the contract from depending on two codebases spelling
+  /// มะโรง identically forever, and it is the only thing about the birth year
+  /// that ever leaves the device.
+  int get zodiacIndex => (lunar.beYear + 5) % 12;
+
+  /// The Thai lunar month, 1=เดือนอ้าย .. 12=เดือนสิบสอง.
+  ///
+  /// The ตำรา groups births into three-month spans and numbers them the same
+  /// way, so this passes through unmapped. A birth in the intercalary เดือน ๘
+  /// หลัง reports 8 like any other eighth-month birth, which is correct: the
+  /// ตำรา's ๘-๙-๑๐ group makes no distinction, so อธิกมาส needs no special case.
+  int get lunarMonthNumber => lunar.month;
 
   /// True when the two นักษัตร reckonings can disagree for this birth.
   bool get zodiacIsBoundarySensitive =>

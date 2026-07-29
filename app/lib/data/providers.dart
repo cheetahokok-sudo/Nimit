@@ -112,6 +112,19 @@ final ageWheelProvider = FutureProvider.family<AgeWheelReading, int>(
   (ref, age) => ref.watch(libraryRepositoryProvider).ageWheel(age),
 );
 
+/// ปีนักษัตร for a zodiac index and lunar month.
+///
+/// Keyed on a record so the two arguments stay named at the call site —
+/// `(index: 4, lunarMonth: 7)` cannot be transposed the way a positional pair
+/// can, and transposing them here would silently return the wrong year's
+/// reading rather than failing.
+final zodiacYearProvider =
+    FutureProvider.family<ZodiacYearReading, ({int index, int? lunarMonth})>(
+  (ref, key) => ref
+      .watch(libraryRepositoryProvider)
+      .zodiacYear(key.index, key.lunarMonth),
+);
+
 final symbolStoryProvider = FutureProvider.family<SymbolStory, String>(
   (ref, slug) => ref.watch(libraryRepositoryProvider).story(slug),
 );

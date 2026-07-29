@@ -92,4 +92,23 @@ class PostgrestLibraryRepository implements LibraryRepository {
     }
     return AgeWheelReading.fromJson(decoded);
   }
+
+  @override
+  Future<ZodiacYearReading> zodiacYear(int index, int? lunarMonth) async {
+    final uri = Uri.parse('$baseUrl/rest/v1/rpc/zodiac_year');
+    final body = utf8.encode(
+        jsonEncode({'p_zodiac_index': index, 'p_lunar_month': lunarMonth}));
+    final response =
+        await _client.post(uri, headers: _headers, body: body).timeout(_timeout);
+    if (response.statusCode != 200) {
+      throw Exception('zodiac_year returned HTTP ${response.statusCode}');
+    }
+    final decoded = jsonDecode(utf8.decode(response.bodyBytes));
+    if (decoded is! Map<String, dynamic>) {
+      // SQL NULL — an out-of-range index, or the symbol is not published.
+      // Neither is an error to surface; the screen shows its empty state.
+      return ZodiacYearReading.empty(index, lunarMonth);
+    }
+    return ZodiacYearReading.fromJson(decoded);
+  }
 }

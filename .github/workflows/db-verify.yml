@@ -205,6 +205,48 @@ jobs:
               end if;
             end \$\$;"
 
+      # ปีนักษัตร: the index mapping and the เดือนเกิด routing. The routing is
+      # checked with the readings TEMPORARILY published inside a rolled-back
+      # transaction, because with everything at draft the function returns empty
+      # lists for every month and a wrong mapping would look identical to a
+      # right one. เดือนอ้าย is the case that matters — it is month 1 but belongs
+      # to the ๑๑-๑๒-อ้าย group, so it wraps the year end.
+      - name: ปีนักษัตร API maps years and routes เดือนเกิด
+        run: |
+          psql "$PGURL" -v ON_ERROR_STOP=1 -t -c "
+            do \$\$
+            declare n int; s text;
+            begin
+              if api.zodiac_year(0,null)->>'slug' <> 'year-rat'
+                 or api.zodiac_year(11,null)->>'slug' <> 'year-pig' then
+                raise exception 'zodiac index mapping is shifted';
+              end if;
+              if api.zodiac_year(12,null) is not null then
+                raise exception 'zodiac index must fail closed, not wrap';
+              end if;
+            end \$\$;"
+          psql "$PGURL" -v ON_ERROR_STOP=1 -t -c "
+            begin;
+            update content.interpretation i set status = 'published'
+              from content.symbol s where s.id = i.symbol_id
+               and s.concept_key = 'ZODIAC_RAT';
+            do \$\$
+            declare m int; n int; body text;
+            begin
+              for m in 1..12 loop
+                select jsonb_array_length(api.zodiac_year(0,m)->'monthReadings')
+                  into n;
+                if n <> 1 then
+                  raise exception 'เดือน % matched % month readings, expected exactly 1', m, n;
+                end if;
+              end loop;
+              select api.zodiac_year(0,1)->'monthReadings'->0->>'bodyTh' into body;
+              if body not like '%เดือนอ้าย%' then
+                raise exception 'เดือนอ้าย must route to the ๑๑-๑๒-อ้าย group';
+              end if;
+            end \$\$;
+            rollback;"
+
       - name: Assertion suite (published state)
         run: psql "$PGURL" -v ON_ERROR_STOP=1 -f supabase/tests/rights_firewall_test.sql
 

@@ -268,3 +268,68 @@ class AgeWheelFigure {
         ],
       );
 }
+
+/// ปีนักษัตร — the พรหมชาติ birth-year reading, as returned by
+/// `api.zodiac_year`.
+///
+/// Two lists, deliberately not merged. [yearReadings] applies to everyone born
+/// in that นักษัตร year; [monthReadings] refines it for the three-month group
+/// the birth falls in, and applies to roughly a quarter of them. Stacking the
+/// two without distinction would present a refinement as the general case —
+/// and in this ตำรา the refinement can invert the verdict, so the difference is
+/// not cosmetic.
+///
+/// Both are EMPTY while the readings sit at draft, which is the current state:
+/// they come from a modern compilation that has not been corroborated, so the
+/// two-source rule withholds them. Empty is a real answer, not an error.
+class ZodiacYearReading {
+  const ZodiacYearReading({
+    required this.index,
+    required this.lunarMonth,
+    required this.slug,
+    required this.nameTh,
+    required this.yearReadings,
+    required this.monthReadings,
+  });
+
+  /// 0=ชวด .. 11=กุน.
+  final int index;
+
+  /// 1=เดือนอ้าย .. 12=เดือนสิบสอง, or null when the caller sent no month.
+  final int? lunarMonth;
+
+  final String slug;
+  final String nameTh;
+
+  final List<TaksaEntry> yearReadings;
+  final List<TaksaEntry> monthReadings;
+
+  bool get hasAnyReading =>
+      yearReadings.isNotEmpty || monthReadings.isNotEmpty;
+
+  factory ZodiacYearReading.fromJson(Map<String, dynamic> json) {
+    List<TaksaEntry> entries(String key) => [
+          for (final r in (json[key] as List? ?? const []))
+            TaksaEntry.fromJson(r as Map<String, dynamic>),
+        ];
+
+    return ZodiacYearReading(
+      index: (json['index'] as num?)?.toInt() ?? 0,
+      lunarMonth: (json['lunarMonth'] as num?)?.toInt(),
+      slug: json['slug'] as String? ?? '',
+      nameTh: json['nameTh'] as String? ?? '',
+      yearReadings: entries('yearReadings'),
+      monthReadings: entries('monthReadings'),
+    );
+  }
+
+  static ZodiacYearReading empty(int index, int? lunarMonth) =>
+      ZodiacYearReading(
+        index: index,
+        lunarMonth: lunarMonth,
+        slug: '',
+        nameTh: '',
+        yearReadings: const [],
+        monthReadings: const [],
+      );
+}
