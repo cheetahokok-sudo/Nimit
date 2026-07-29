@@ -51,9 +51,16 @@ if (-not (Test-Path $psql)) {
 # A ref typo would otherwise apply this schema to an unrelated database.
 # ---------------------------------------------------------------------------
 Write-Host "`n== Target check ==" -ForegroundColor Cyan
-$projects = supabase projects list -o json 2>$null | ConvertFrom-Json
-$target = $projects.projects | Where-Object { $_.ref -eq $ProjectRef }
-if (-not $target) { Write-Error "Project ref '$ProjectRef' not found in your Supabase account." }
+# Out-String first: the CLI pretty-prints its JSON across many lines, and in
+# Windows PowerShell 5.1 a native command's output reaches ConvertFrom-Json
+# line by line, each an invalid fragment. Joining to one string is mandatory.
+$projectsJson = supabase projects list -o json 2>$null | Out-String
+$projects = $projectsJson | ConvertFrom-Json
+# CLI ≤2.x once wrapped the list as {projects:[...]}; current versions emit a
+# bare array. Accept either, so a CLI update cannot fail the check again.
+$list = if ($projects -and $projects.PSObject.Properties['projects']) { $projects.projects } else { $projects }
+$target = $list | Where-Object { $_.ref -eq $ProjectRef }
+if (-not $target) { Write-Error "Project ref '$ProjectRef' not found in your Supabase account. (Is the CLI logged in? Try: supabase projects list)" }
 
 Write-Host "  name   : $($target.name)"
 Write-Host "  region : $($target.region)"
