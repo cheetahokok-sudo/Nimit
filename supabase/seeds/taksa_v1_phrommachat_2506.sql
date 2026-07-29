@@ -49,7 +49,28 @@ values
  'สุนันท์ วิโรภาส เป็นผู้เรียบเรียงฉบับพิมพ์ พ.ศ. 2506 ไม่ใช่ผู้แต่งงานต้นทาง | '
  'ฉบับพิมพ์และภาพสแกนยังมีสิทธิ์ของผู้จัดพิมพ์และห้องสมุด จึงไม่เผยแพร่ซ้ำ',
  'published')
-on conflict (slug) do nothing;
+-- DO UPDATE, not DO NOTHING, and this is the whole point of the Path A story
+-- above. The correction was written into this file and then never reached any
+-- database that already had the row: DO NOTHING meant every re-run silently
+-- kept 'สุนันท์ วิโรภาส's พรหมชาติ, copyrighted_cite_only, draft'. The live
+-- database sat on the pre-correction values for as long as it took the guard in
+-- sources_v8 to refuse to apply against them.
+--
+-- A rights correction that cannot propagate is not a correction. Any seed that
+-- owns a work or edition row has to be able to restate it, or the file stops
+-- describing the database it claims to build.
+--
+-- work.rights cascades: the FK on (work_id, work_rights) is ON UPDATE CASCADE,
+-- so edition.work_rights and passage.work_rights follow this automatically.
+on conflict (slug) do update set
+  canonical_title_th   = excluded.canonical_title_th,
+  attributed_author_th = excluded.attributed_author_th,
+  composed_period_th   = excluded.composed_period_th,
+  rights               = excluded.rights,
+  pd_basis             = excluded.pd_basis,
+  copyright_holder     = excluded.copyright_holder,
+  rights_note_th       = excluded.rights_note_th,
+  status               = excluded.status;
 
 insert into content.edition
   (work_id, citekey, tier, label_th, custodian_th, stable_identifier,
@@ -66,7 +87,17 @@ select w.id, 'phrommachat-2506', 'b2', 'พรหมชาติ ฉบับอ
   'บันทึกเฉพาะเลขหน้าและคำสรุปที่เขียนขึ้นเอง',
   'published'
 from content.work w where w.slug = 'phrommachat-wirophat'
-on conflict (citekey) do nothing;
+-- Same reason as the work above: the Path A rewrite changed this row's label
+-- and rights note too, and DO NOTHING kept the old text on any database that
+-- already had it. work_rights is deliberately absent — it is trigger-owned and
+-- must never be authored by hand.
+on conflict (citekey) do update set
+  label_th         = excluded.label_th,
+  custodian_th     = excluded.custodian_th,
+  physical_desc_th = excluded.physical_desc_th,
+  custodian_rights = excluded.custodian_rights,
+  rights_note_th   = excluded.rights_note_th,
+  status           = excluded.status;
 
 -- ---------------------------------------------------------------------------
 -- The seven days as symbols.
@@ -181,6 +212,32 @@ join content.symbol s on s.concept_key = v.concept_key
 cross join p cross join tr
 where not exists (select 1 from content.interpretation i
                    where i.symbol_id = s.id and i.passage_id = (select id from p));
+
+-- ---------------------------------------------------------------------------
+-- Promote the seven readings this file owns, if an earlier run left them draft.
+--
+-- The insert above skips rows that already exist, which is right — it must not
+-- overwrite an editor's later wording. But it means these readings were frozen
+-- in whatever state they first landed in, and on a database that ran the
+-- pre-Path-A version they landed as DRAFT: the work was copyrighted_cite_only
+-- then, enforce_corroboration() refused to publish them, and no re-run ever
+-- revisited it. The file said 'published' and the database said 'draft' for as
+-- long as nobody looked.
+--
+-- Scoped to exactly the seven BIRTHDAY_* readings on this passage. The
+-- corroboration trigger still governs the outcome: if the work is somehow not
+-- public domain, this raises rather than quietly publishing, which is the
+-- behaviour we want from a promotion that runs unattended.
+-- ---------------------------------------------------------------------------
+update content.interpretation i
+   set status = 'published', published_at = coalesce(i.published_at, now())
+  from content.symbol s, content.passage p, content.edition e
+ where s.id = i.symbol_id
+   and p.id = i.passage_id
+   and e.id = p.edition_id
+   and s.concept_key like 'BIRTHDAY_%'
+   and e.citekey = 'phrommachat-2506'
+   and i.status = 'draft';
 
 -- ---------------------------------------------------------------------------
 -- Assert the intent. These inserts join content.category, content.edition and
