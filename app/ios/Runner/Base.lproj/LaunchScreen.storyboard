@@ -38,6 +38,9 @@
         </scene>
     </scenes>
     <resources>
-        <image name="LaunchImage" width="168" height="185"/>
+        <!-- Design-time hint only; Xcode reads the real size from the asset
+             catalog. Was 168x185 from the Flutter template, which no longer
+             describes anything — the mark is a 240 pt square. -->
+        <image name="LaunchImage" width="240" height="240"/>
     </resources>
 </document>

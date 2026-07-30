@@ -87,13 +87,38 @@ Future<void> _write(String path, int size) async {
 class _LaunchMark {
   const _LaunchMark();
 
+  /// Vertical centre of the composition as drawn, measured from its own
+  /// extremes: the crescent's top edge at 0.155 (0.335 − 0.180) and the cloud's
+  /// underside at 0.698 (0.578 + 0.120).
+  ///
+  /// It is NOT 0.5, and that was a visible flaw: the mark had 0.155 of space
+  /// above it and 0.302 below, so it floated high on the launch screen. Rather
+  /// than re-tune fourteen coordinates and re-derive this every time one moves,
+  /// the drawing keeps its own numbers and the transform below recentres it.
+  static const _markCentreY = 0.4265;
+
+  /// How much of the square the mark spans once recentred. At 1.0 it drew 0.700
+  /// wide, leaving 15 % dead on each side; 1.25 takes it to 0.875 with a 6 %
+  /// margin, and the vertical extent to 0.679 — still short of the edges, which
+  /// is deliberate. A launch mark that touches the border reads as a cropped
+  /// screenshot rather than a logo.
+  static const _fill = 1.25;
+
   void paint(Canvas canvas, Size size) {
     final s = size.width;
 
     // Edge to edge and fully opaque — this is what lets the encoder drop alpha,
-    // and what makes the image invisible against the storyboard's cream.
+    // and what makes the image invisible against the storyboard's cream. Painted
+    // BEFORE the transform so it always fills the square, whatever _fill is.
     canvas.drawRect(
         Rect.fromLTWH(0, 0, s, s), Paint()..color = NimitColors.cream);
+
+    // Map the composition's own centre onto the canvas centre, scaled. Reads
+    // backwards, applies forwards: the last translate runs first.
+    canvas.save();
+    canvas.translate(s * 0.5, s * 0.5);
+    canvas.scale(_fill);
+    canvas.translate(s * -0.5, s * -_markCentreY);
 
     _cloud(canvas, s);
 
@@ -109,6 +134,8 @@ class _LaunchMark {
     canvas.restore();
 
     _star(canvas, Offset(s * 0.700, s * 0.300), s * 0.052, s * 0.017);
+
+    canvas.restore();
   }
 
   /// A four-pointed star with concave sides — the shape Thai temple art uses
