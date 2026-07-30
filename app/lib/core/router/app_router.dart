@@ -30,6 +30,24 @@ final appRouter = GoRouter(
             builder: (context, state) => const HomeScreen(),
           ),
         ]),
+        // คลังตำรา is tab 2 rather than a link two taps deep behind an app-bar
+        // icon. It is the app's differentiator — a corpus where every reading
+        // carries a tier badge, a citation and its original text — and burying
+        // it is what let review characterise 1.0.0 (10) as one more fortune app
+        // under guideline 4.3(b). See AppShell for the full account.
+        StatefulShellBranch(routes: [
+          GoRoute(
+            path: '/library',
+            builder: (context, state) => const LibrarySearchScreen(),
+            routes: [
+              GoRoute(
+                path: 'symbol/:slug',
+                builder: (context, state) => SymbolStoryScreen(
+                    slug: state.pathParameters['slug'] ?? ''),
+              ),
+            ],
+          ),
+        ]),
         StatefulShellBranch(routes: [
           GoRoute(
             path: '/dream',
@@ -47,27 +65,6 @@ final appRouter = GoRouter(
                 builder: (context, state) => const ShareCardScreen(),
               ),
             ],
-          ),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: '/trends',
-            builder: (context, state) => const TrendsScreen(),
-            // Nested so the symbol story keeps the shell chrome, same as
-            // /dream/result and the ตรวจหวย sub-routes.
-            routes: [
-              GoRoute(
-                path: 'symbol/:slug',
-                builder: (context, state) => SymbolStoryScreen(
-                    slug: state.pathParameters['slug'] ?? ''),
-              ),
-            ],
-          ),
-        ]),
-        StatefulShellBranch(routes: [
-          GoRoute(
-            path: '/fortune',
-            builder: (context, state) => const FortuneScreen(),
           ),
         ]),
         StatefulShellBranch(routes: [
@@ -98,31 +95,45 @@ final appRouter = GoRouter(
             ],
           ),
         ]),
+        StatefulShellBranch(routes: [
+          GoRoute(
+            path: '/sources',
+            builder: (context, state) => const SourcesScreen(),
+          ),
+        ]),
       ],
     ),
+
+    // ── Kept, but no longer primary surfaces ────────────────────────────────
+    //
+    // ปฏิทินจันทรคติ (the screen that was ดวง) and กระแสปีนี้ live outside the
+    // shell, reached from หน้าแรก. Both are real features and neither was
+    // deleted; what changed is that the tab bar no longer advertises them as
+    // what the app is. See AppShell for why that distinction decided a 4.3(b)
+    // rejection.
+    //
+    // Outside the shell nothing supplies a Scaffold, so each wraps its own —
+    // the same pattern the library's symbol route has always used.
     GoRoute(
-      path: '/sources',
-      builder: (context, state) => const SourcesScreen(),
+      path: '/almanac',
+      builder: (context, state) => const Scaffold(
+        body: SafeArea(child: FortuneScreen()),
+      ),
+    ),
+    GoRoute(
+      path: '/trends',
+      builder: (context, state) => const Scaffold(
+        body: SafeArea(child: TrendsScreen()),
+      ),
       routes: [
         GoRoute(
-          path: 'library',
-          builder: (context, state) => const LibrarySearchScreen(),
-          routes: [
-            // The story screen normally lives inside the shell (under
-            // /trends); here it is reached from a search, so it keeps the
-            // search's back stack instead — popping returns to the results,
-            // not to a tab the user never visited. Outside the shell nothing
-            // provides a Scaffold, hence the wrapper.
-            GoRoute(
-              path: 'symbol/:slug',
-              builder: (context, state) => Scaffold(
-                body: SafeArea(
-                  child: SymbolStoryScreen(
-                      slug: state.pathParameters['slug'] ?? ''),
-                ),
-              ),
+          path: 'symbol/:slug',
+          builder: (context, state) => Scaffold(
+            body: SafeArea(
+              child:
+                  SymbolStoryScreen(slug: state.pathParameters['slug'] ?? ''),
             ),
-          ],
+          ),
         ),
       ],
     ),

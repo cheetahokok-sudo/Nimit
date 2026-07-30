@@ -60,9 +60,22 @@ class FortuneScreen extends ConsumerWidget {
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 32),
       children: [
         Text(
-          'ดวงของฉัน',
+          'ปฏิทินจันทรคติ',
           style: textTheme.headlineSmall!.copyWith(fontWeight: FontWeight.w800),
         ),
+        const SizedBox(height: 4),
+        // THE TITLE IS NOW WHAT THE SCREEN DOES. It was "ดวงของฉัน", which
+        // promised a fortune reading, and App Store review read the app as a
+        // horoscope app partly on the strength of surfaces like this one. But
+        // nothing here predicts: it converts a birth date to the Thai lunar
+        // calendar and names the ทักษา and นักษัตร classes that tradition
+        // assigns to it. That is calendar arithmetic plus a citation, and the
+        // invented "เดือนนี้: เริ่มสิ่งใหม่อย่างมีแผน" advice line was deleted
+        // long before review ever saw it. Calling it a ปฏิทิน is not softening
+        // the description — it is the first accurate one.
+        const DisclaimerText(
+            'แปลงวันเกิดเป็นวันทางจันทรคติ พร้อมทักษาและนักษัตรตามตำรา '
+            'ไม่ใช่คำทำนาย'),
         const SizedBox(height: 14),
         profile.when(
           loading: () => const Padding(
@@ -1244,7 +1257,9 @@ class _SourceFooter extends StatelessWidget {
         Align(
           alignment: Alignment.centerLeft,
           child: TextButton(
-            onPressed: () => context.push('/sources'),
+            // go, not push: แหล่งอ้างอิง is a shell tab now, so this switches to
+            // it rather than stacking a second copy on top of this screen.
+            onPressed: () => context.go('/sources'),
             style: TextButton.styleFrom(
               padding: EdgeInsets.zero,
               minimumSize: const Size(0, 44),

@@ -299,7 +299,9 @@ class _DreamResultScreenState extends ConsumerState<DreamResultScreen> {
             Expanded(
               flex: 2,
               child: OutlinedButton(
-                onPressed: () => context.push('/sources'),
+                // go, not push: แหล่งอ้างอิง is a shell tab now, so this switches
+                // to it instead of stacking a second copy over the result.
+                onPressed: () => context.go('/sources'),
                 child: const Text('อ่านทุกแหล่ง'),
               ),
             ),

@@ -68,42 +68,41 @@ class _LibrarySearchScreenState extends ConsumerState<LibrarySearchScreen> {
   Widget build(BuildContext context) {
     final textTheme = Theme.of(context).textTheme;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('คลังตำรา',
+    // No Scaffold and no AppBar: คลังตำรา is a tab now, so AppShell supplies
+    // both. It used to be pushed from an app-bar icon and carried its own.
+    return ListView(
+      padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+      children: [
+        Text('คลังตำรา',
             style:
-                textTheme.titleMedium!.copyWith(fontWeight: FontWeight.w800)),
-      ),
-      body: ListView(
-        padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-        children: [
-          const DisclaimerText(
-              'ค้นสัญลักษณ์จากคลังที่ทุกคำแปลมีที่มาตรวจสอบได้'),
-          const SizedBox(height: 14),
-          TextField(
-            controller: _controller,
-            onChanged: _onChanged,
-            onSubmitted: _commit,
-            textInputAction: TextInputAction.search,
-            decoration: InputDecoration(
-              hintText: 'เช่น นก ช้าง น้ำ',
-              prefixIcon: const Icon(Icons.search),
-              suffixIcon: _controller.text.isEmpty
-                  ? null
-                  : IconButton(
-                      tooltip: 'ล้างคำค้น',
-                      icon: const Icon(Icons.close),
-                      onPressed: () {
-                        _controller.clear();
-                        _commit('');
-                      },
-                    ),
-            ),
+                textTheme.headlineSmall!.copyWith(fontWeight: FontWeight.w800)),
+        const SizedBox(height: 4),
+        const DisclaimerText(
+            'ค้นสัญลักษณ์จากคลังที่ทุกคำแปลมีที่มาตรวจสอบได้'),
+        const SizedBox(height: 14),
+        TextField(
+          controller: _controller,
+          onChanged: _onChanged,
+          onSubmitted: _commit,
+          textInputAction: TextInputAction.search,
+          decoration: InputDecoration(
+            hintText: 'เช่น นก ช้าง น้ำ',
+            prefixIcon: const Icon(Icons.search),
+            suffixIcon: _controller.text.isEmpty
+                ? null
+                : IconButton(
+                    tooltip: 'ล้างคำค้น',
+                    icon: const Icon(Icons.close),
+                    onPressed: () {
+                      _controller.clear();
+                      _commit('');
+                    },
+                  ),
           ),
-          const SizedBox(height: 16),
-          ..._buildBody(textTheme),
-        ],
-      ),
+        ),
+        const SizedBox(height: 16),
+        ..._buildBody(textTheme),
+      ],
     );
   }
 
@@ -165,8 +164,7 @@ class _LibrarySearchScreenState extends ConsumerState<LibrarySearchScreen> {
                   ],
                   for (final r in list) ...[
                     SectionCard(
-                      onTap: () =>
-                          context.go('/sources/library/symbol/${r.slug}'),
+                      onTap: () => context.go('/library/symbol/${r.slug}'),
                       child: Row(
                         children: [
                           Expanded(

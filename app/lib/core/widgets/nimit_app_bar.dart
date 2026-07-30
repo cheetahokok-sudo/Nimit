@@ -1,9 +1,16 @@
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
 
 import '../theme/nimit_theme.dart';
 
-/// Brand app bar: moon mark + "นิมิต · ฝัน • ดวง • ความเชื่อ".
+/// Brand app bar: moon mark + "นิมิต · คลังตำราอ้างอิงไทย".
+///
+/// The subtitle read "ฝัน • ดวง • ความเชื่อ" until App Store review rejected
+/// 1.0.0 (10) under guideline 4.3(b). Three words, two of which named a
+/// saturated category, on every screen in the app — it described นิมิต as the
+/// genre rather than as the thing it actually is, which is a cited corpus.
+///
+/// The แหล่งอ้างอิง action is gone from here too: it is a tab now, and an icon
+/// duplicating a destination in the bottom bar is a second door to one room.
 class NimitAppBar extends StatelessWidget implements PreferredSizeWidget {
   const NimitAppBar({super.key});
 
@@ -40,7 +47,7 @@ class NimitAppBar extends StatelessWidget implements PreferredSizeWidget {
                     overflow: TextOverflow.ellipsis,
                     style: textTheme.titleMedium!
                         .copyWith(fontWeight: FontWeight.w800)),
-                Text('ฝัน • ดวง • ความเชื่อ',
+                Text('คลังตำราอ้างอิงไทย',
                     maxLines: 1,
                     overflow: TextOverflow.ellipsis,
                     style: textTheme.labelSmall!
@@ -50,14 +57,6 @@ class NimitAppBar extends StatelessWidget implements PreferredSizeWidget {
           ),
         ],
       ),
-      actions: [
-        IconButton(
-          tooltip: 'แหล่งอ้างอิง',
-          onPressed: () => context.push('/sources'),
-          icon: const Icon(Icons.menu_book_outlined, color: NimitColors.ink),
-        ),
-        const SizedBox(width: 8),
-      ],
     );
   }
 }

@@ -44,7 +44,7 @@ void main() {
     );
     await tester.pumpAndSettle();
     // appRouter is a process-global; start every test from a known place.
-    appRouter.go('/sources/library');
+    appRouter.go('/library');
     await tester.pumpAndSettle();
   }
 

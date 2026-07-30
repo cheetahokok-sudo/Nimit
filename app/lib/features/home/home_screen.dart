@@ -65,15 +65,51 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     return ListView(
       padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
       children: [
+        // THE FIRST SCREEN STATES WHAT THE APP IS. It used to open on
+        // "คืนนี้ความฝันอาจกำลังบอกอะไรกับคุณ" above a dream box — a fortune
+        // app's opening line, and App Store review classified 1.0.0 (10)
+        // accordingly under guideline 4.3(b). The corpus is the claim worth
+        // making first, because it is the one no other app in this genre can
+        // make: readings that carry a tier, a citation, and their original text.
         Text(
-          'คืนนี้ความฝัน\nอาจกำลังบอกอะไรกับคุณ',
+          'คลังตำราไทย\nที่ทุกคำแปลตรวจสอบได้',
           style: textTheme.headlineSmall!
               .copyWith(fontWeight: FontWeight.w800, height: 1.25),
         ),
         const SizedBox(height: 4),
         const DisclaimerText(
-            'แปลความหมายจากหลายตำรา พร้อมเลขเชิงสัญลักษณ์'),
+            'ค้นสัญลักษณ์จากตำราพรหมชาติและตำราฝันไทย พร้อมที่มาและข้อความ'
+            'ต้นฉบับ และตรวจผลสลากกินแบ่งรัฐบาลจากประกาศจริง'),
         const SizedBox(height: 16),
+
+        // คลังตำรา first, above the dream box. Same corpus either way — this
+        // is about which door the app shows you when it opens.
+        SectionCard(
+          onTap: () => context.go('/library'),
+          child: Row(
+            children: [
+              const Icon(Icons.menu_book_outlined,
+                  size: 22, color: NimitColors.ink),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('ค้นคลังตำรา',
+                        style: textTheme.titleSmall!
+                            .copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    const DisclaimerText(
+                        'พิมพ์คำเดียว เช่น นก ช้าง น้ำ แล้วอ่านสิ่งที่ตำราเขียนไว้'),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right,
+                  size: 20, color: NimitColors.inkSoft),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
 
         // เล่าความฝันเมื่อคืน — hero CTA
         DarkCard(
@@ -171,8 +207,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
         const SizedBox(height: 20),
 
+        // ปฏิทินจันทรคติ and กระแสปีนี้ are reached from here rather than from
+        // the tab bar. Neither was removed; both stopped being the first thing
+        // the app says about itself. See AppShell for why that mattered.
         SectionCard(
-          onTap: () => context.go('/trends'),
+          onTap: () => context.push('/almanac'),
+          child: Row(
+            children: [
+              const Icon(Icons.calendar_month_outlined,
+                  size: 22, color: NimitColors.ink),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text('ปฏิทินจันทรคติ',
+                        style: textTheme.titleSmall!
+                            .copyWith(fontWeight: FontWeight.w700)),
+                    const SizedBox(height: 2),
+                    const DisclaimerText(
+                        'แปลงวันเกิดเป็นวันทางจันทรคติ พร้อมทักษาและนักษัตร'),
+                  ],
+                ),
+              ),
+              const Icon(Icons.chevron_right,
+                  size: 20, color: NimitColors.inkSoft),
+            ],
+          ),
+        ),
+        const SizedBox(height: 14),
+
+        SectionCard(
+          onTap: () => context.push('/trends'),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [

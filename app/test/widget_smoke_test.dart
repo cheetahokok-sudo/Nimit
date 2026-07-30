@@ -58,12 +58,22 @@ void main() {
 
     // Brand + home headline
     expect(find.text('นิมิต'), findsOneWidget);
-    expect(find.textContaining('คืนนี้ความฝัน'), findsOneWidget);
+    expect(find.textContaining('คลังตำราไทย'), findsOneWidget);
 
-    // 5 tabs from the UI board
-    for (final label in ['หน้าแรก', 'ความฝัน', 'กระแส', 'ดวง', 'ตรวจหวย']) {
+    // The bar after the 4.3(b) rejection. The two labels that are GONE matter
+    // as much as the five that are here: a tab bar advertising ดวง is the app
+    // telling review it is a horoscope app, whatever the rest of it does.
+    for (final label in [
+      'หน้าแรก',
+      'คลังตำรา',
+      'ความฝัน',
+      'ตรวจหวย',
+      'แหล่งอ้างอิง',
+    ]) {
       expect(find.text(label), findsWidgets);
     }
+    expect(find.text('ดวง'), findsNothing);
+    expect(find.text('กระแส'), findsNothing);
   });
 
   testWidgets('renders without overflow at narrow phone width',
@@ -160,37 +170,73 @@ void main() {
   testWidgets('all tabs navigate', (tester) async {
     await pumpApp(tester);
 
+    // คลังตำรา is a tab, which is the substance of the 4.3(b) fix — if this
+    // assertion ever needs deleting, the app has drifted back to burying the
+    // one thing that distinguishes it.
+    await tester.tap(find.text('คลังตำรา').last);
+    await tester.pumpAndSettle();
+    expect(find.text('ลองค้นดู'), findsOneWidget);
+
     await tester.tap(find.text('ความฝัน'));
     await tester.pumpAndSettle();
     expect(find.text('เล่าความฝัน'), findsOneWidget);
 
-    await tester.tap(find.text('กระแส'));
-    await tester.pumpAndSettle();
-    expect(find.text('กระแสปีนี้'), findsOneWidget);
-
-    await tester.tap(find.text('ดวง'));
-    await tester.pumpAndSettle();
-    expect(find.text('ดวงของฉัน'), findsOneWidget);
-
     await tester.tap(find.text('ตรวจหวย'));
     await tester.pumpAndSettle();
     expect(find.text('ตรวจหวยรัฐบาล'), findsOneWidget);
+
+    await tester.tap(find.text('แหล่งอ้างอิง').last);
+    await tester.pumpAndSettle();
+    expect(find.text('ชั้นความน่าเชื่อถือของตำรา'), findsOneWidget);
   });
 
-  testWidgets('ดวงของฉัน asks for a birth date and invents nothing',
+  testWidgets('the demoted screens are still reachable from หน้าแรก',
+      (tester) async {
+    // Repositioning must not become quiet feature deletion. ปฏิทินจันทรคติ and
+    // กระแสปีนี้ lost their tabs, not their existence, and a user who wants
+    // them has a door on the first screen.
+    //
+    // Tall viewport because both cards sit below the fold of หน้าแรก, and on
+    // the default 800 px view a tap would fail for the wrong reason.
+    tester.view.physicalSize = const Size(420, 2000);
+    tester.view.devicePixelRatio = 1.0;
+    addTearDown(tester.view.reset);
+
+    await pumpApp(tester);
+
+    await tester.tap(find.text('ปฏิทินจันทรคติ'));
+    await tester.pumpAndSettle();
+    expect(find.text('ปฏิทินจันทรคติ'), findsWidgets);
+    // The demotion is a demotion, not a disguise: the screen still says what
+    // it computes, and it still refuses to call any of it a prediction.
+    expect(find.textContaining('ไม่ใช่คำทำนาย'), findsWidgets);
+
+    appRouter.go('/home');
+    await tester.pumpAndSettle();
+
+    await tester.tap(find.text('กำลังเป็นกระแสในไทย'));
+    await tester.pumpAndSettle();
+    expect(find.text('กระแสปีนี้'), findsOneWidget);
+  });
+
+  testWidgets('ปฏิทินจันทรคติ asks for a birth date and invents nothing',
       (tester) async {
     // This screen used to render a ลัคนา, a badge claiming birth data was on
     // file, four 'เลขประจำดวง' and a line of money advice — all constants in a
     // mock. The absence assertions below fail the moment any of it returns.
+    //
+    // It was titled ดวงของฉัน then. It is a ปฏิทิน now, and the rename is the
+    // honest one rather than a euphemism: with the invented advice gone, what
+    // remains converts a date and cites tradition. Nothing here predicts.
     tester.view.physicalSize = const Size(420, 1600);
     tester.view.devicePixelRatio = 1.0;
     addTearDown(tester.view.resetPhysicalSize);
 
     await pumpApp(tester);
-    appRouter.go('/fortune');
+    appRouter.go('/almanac');
     await tester.pumpAndSettle();
 
-    expect(find.text('ดวงของฉัน'), findsOneWidget);
+    expect(find.text('ปฏิทินจันทรคติ'), findsOneWidget);
     expect(find.text('ข้อมูลเกิดครบแล้ว'), findsNothing,
         reason: 'no date stored yet, so the pill must not claim one');
     // The privacy card must name the field it actually stores. A date of birth
@@ -223,7 +269,7 @@ void main() {
     SharedPreferences.setMockInitialValues(
         {'nimit.birth.v2': '{"date":"2026-07-29"}'});
     await pumpApp(tester);
-    appRouter.go('/fortune');
+    appRouter.go('/almanac');
     await tester.pumpAndSettle();
 
     // Excludes the hero line explicitly. The hero shows TODAY's lunar date and
@@ -269,7 +315,7 @@ void main() {
     SharedPreferences.setMockInitialValues(
         {'nimit.birthmonth.v1': '{"month":7}'});
     await pumpApp(tester);
-    appRouter.go('/fortune');
+    appRouter.go('/almanac');
     await tester.pumpAndSettle();
 
     expect(find.textContaining('เดิมคุณบอกไว้แค่เดือน กรกฎาคม'), findsOneWidget);
@@ -291,7 +337,7 @@ void main() {
     SharedPreferences.setMockInitialValues(
         {'nimit.birth.v2': '{"date":"2026-07-29"}'});
     await pumpApp(tester, library: _StubLibrary());
-    appRouter.go('/fortune');
+    appRouter.go('/almanac');
     await tester.pumpAndSettle();
 
     // Summary and body are separately present, asserted on text unique to each.
@@ -363,7 +409,7 @@ void main() {
     SharedPreferences.setMockInitialValues(
         {'nimit.birth.v2': '{"date":"2026-07-29"}'});
     await pumpApp(tester, library: _StubLibrary());
-    appRouter.go('/fortune');
+    appRouter.go('/almanac');
     await tester.pumpAndSettle();
 
     expect(find.text('คำทำนายตามปีนักษัตร'), findsOneWidget);
@@ -387,7 +433,7 @@ void main() {
     SharedPreferences.setMockInitialValues(
         {'nimit.birth.v2': '{"date":"2026-07-29"}'});
     await pumpApp(tester, library: _StubLibrary());
-    appRouter.go('/fortune');
+    appRouter.go('/almanac');
     await tester.pumpAndSettle();
 
     // Both sides are labelled and named. Showing only one would mean the app
@@ -418,7 +464,7 @@ void main() {
     SharedPreferences.setMockInitialValues(
         {'nimit.birth.v2': '{"date":"2026-07-29"}'});
     await pumpApp(tester);
-    appRouter.go('/fortune');
+    appRouter.go('/almanac');
     await tester.pumpAndSettle();
 
     expect(find.text('ยังไม่มีตำราในคลังที่ทำนายจากวันเกิด'), findsOneWidget);
@@ -448,7 +494,7 @@ void main() {
       SharedPreferences.setMockInitialValues(
           {'nimit.birth.v2': '{"date":"2026-07-29"}'});
       await pumpApp(tester);
-      appRouter.go('/fortune');
+      appRouter.go('/almanac');
       await tester.pumpAndSettle();
 
       final orb = tester.getRect(find.byType(CelestialOrb));
@@ -527,7 +573,7 @@ void main() {
     SharedPreferences.setMockInitialValues(
         {'nimit.birth.v2': '{"date":"2026-07-29"}'});
     await pumpApp(tester);
-    appRouter.go('/fortune');
+    appRouter.go('/almanac');
     await tester.pumpAndSettle();
 
     for (final key in ['hero-date', 'hero-lunar']) {
@@ -552,7 +598,7 @@ void main() {
     SharedPreferences.setMockInitialValues(
         {'nimit.birth.v2': '{"date":"2026-07-29"}'});
     await pumpApp(tester);
-    appRouter.go('/fortune');
+    appRouter.go('/almanac');
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
@@ -567,7 +613,7 @@ void main() {
     addTearDown(tester.view.reset);
 
     await pumpApp(tester);
-    appRouter.go('/fortune');
+    appRouter.go('/almanac');
     await tester.pumpAndSettle();
 
     expect(tester.takeException(), isNull);
@@ -585,7 +631,9 @@ void main() {
     addTearDown(tester.view.reset);
 
     await pumpApp(tester, lottery: _FixtureLotteryRepository.announced());
-    await tester.tap(find.text('กระแส'));
+    // Reached from the หน้าแรก card now, not a tab — กระแส lost its place in
+    // the bar in the 4.3(b) repositioning without losing the screen.
+    await tester.tap(find.text('กำลังเป็นกระแสในไทย'));
     await tester.pumpAndSettle();
 
     expect(find.text('กระแสปีนี้'), findsOneWidget);
@@ -727,7 +775,12 @@ void main() {
     // the app — which is where a reviewer looks for them first.
     expect(find.text('นโยบายความเป็นส่วนตัว'), findsOneWidget);
     expect(find.text('ติดต่อ / ช่วยเหลือ'), findsOneWidget);
-    expect(find.byIcon(Icons.open_in_new), findsNWidgets(2));
+
+    // Three outbound links, not two: หอสมุดแห่งชาติ joined them when this page
+    // became a tab. A reader who doubts a reading needs somewhere to go that
+    // is not this app, and the custodian of the tradition is that somewhere.
+    expect(find.text('หอสมุดแห่งชาติ'), findsOneWidget);
+    expect(find.byIcon(Icons.open_in_new), findsNWidgets(3));
 
     // Nothing in the binary may describe the app as a trial: App Review
     // rejects a build that presents itself as a demo, and this string used to
@@ -741,7 +794,9 @@ void main() {
     expect(find.textContaining('เปิดคลังตำรา'), findsOneWidget);
     await tester.tap(find.textContaining('เปิดคลังตำรา'));
     await tester.pumpAndSettle();
-    expect(find.text('คลังตำรา'), findsOneWidget);
+    // findsWidgets, not findsOneWidget: คลังตำรา is now both the tab label in
+    // the persistent bottom bar and the heading of the screen it opens.
+    expect(find.text('คลังตำรา'), findsWidgets);
     expect(find.byType(TextField), findsOneWidget);
   });
 }

@@ -21,92 +21,113 @@ class SourcesScreen extends ConsumerWidget {
     // count in a product about verifiable sourcing.
     final count = ref.watch(sourceLibraryCountProvider).value;
 
-    return Scaffold(
-      appBar: AppBar(
-        title: Text('แหล่งอ้างอิง',
-            style:
-                textTheme.titleMedium!.copyWith(fontWeight: FontWeight.w800)),
-      ),
-      body: tiers.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) =>
-            const Center(child: DisclaimerText('โหลดข้อมูลไม่สำเร็จ')),
-        data: (list) => ListView(
-          padding: const EdgeInsets.fromLTRB(20, 4, 20, 24),
-          children: [
-            const DisclaimerText('ทุกคำแปลควรมีที่มา'),
-            const SizedBox(height: 14),
-            for (final tier in list) ...[
-              SectionCard(
-                child: Row(
-                  children: [
-                    SourceBadge(tier),
-                    const SizedBox(width: 14),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(tier.titleTh,
-                              style: textTheme.titleSmall!
-                                  .copyWith(fontWeight: FontWeight.w700)),
-                          const SizedBox(height: 2),
-                          Text(tier.descriptionTh,
-                              style: textTheme.bodySmall!
-                                  .copyWith(color: NimitColors.inkSoft)),
-                        ],
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 12),
-            ],
-            // เปิดคลังตำรา is a real door now: it opens the search screen
-            // over the published library. It spent a while as a plain
-            // statement, after an earlier life as a button that opened
-            // nothing and apologised in a snackbar — a promise the app could
-            // not keep, on the one screen whose whole subject is keeping them.
-            const SizedBox(height: 4),
+    // No Scaffold: แหล่งอ้างอิง is a tab now, so AppShell supplies the chrome.
+    // It used to be pushed from an app-bar icon — and for the first submission
+    // it was very nearly hidden altogether, out of a worry that review would
+    // dig into the citations. That instinct was exactly backwards. Review did
+    // not object to the sourcing; it rejected the app under 4.3(b) for looking
+    // like one more fortune app, because the sourcing was the one thing not on
+    // screen. This page is the evidence, so it is a destination.
+    return tiers.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) =>
+          const Center(child: DisclaimerText('โหลดข้อมูลไม่สำเร็จ')),
+      data: (list) => ListView(
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 24),
+        children: [
+          Text('แหล่งอ้างอิง',
+              style: textTheme.headlineSmall!
+                  .copyWith(fontWeight: FontWeight.w800)),
+          const SizedBox(height: 4),
+          const DisclaimerText(
+              'นิมิตไม่แต่งความหมายขึ้นเอง ทุกคำแปลอ้างอิงตำราที่ระบุชั้นความ'
+              'น่าเชื่อถือ และแสดงข้อความต้นฉบับให้ตรวจสอบได้'),
+          const SizedBox(height: 14),
+          const SectionHeader('ชั้นความน่าเชื่อถือของตำรา'),
+          const SizedBox(height: 10),
+          for (final tier in list) ...[
             SectionCard(
-              onTap: () => context.go('/sources/library'),
               child: Row(
                 children: [
+                  SourceBadge(tier),
+                  const SizedBox(width: 14),
                   Expanded(
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text('เปิดคลังตำรา',
+                        Text(tier.titleTh,
                             style: textTheme.titleSmall!
                                 .copyWith(fontWeight: FontWeight.w700)),
                         const SizedBox(height: 2),
-                        DisclaimerText(count != null
-                            ? 'ค้นสัญลักษณ์จากคลังอ้างอิง $count รายการ พร้อมที่มาและข้อความต้นฉบับ'
-                            : 'ค้นสัญลักษณ์พร้อมที่มาและข้อความต้นฉบับ'),
+                        Text(tier.descriptionTh,
+                            style: textTheme.bodySmall!
+                                .copyWith(color: NimitColors.inkSoft)),
                       ],
                     ),
                   ),
-                  const SizedBox(width: 12),
-                  const Icon(Icons.chevron_right,
-                      size: 20, color: NimitColors.inkSoft),
                 ],
               ),
             ),
-            const SizedBox(height: 24),
-            const SectionHeader('เกี่ยวกับแอป'),
             const SizedBox(height: 12),
-            _LinkCard(
-              title: 'นโยบายความเป็นส่วนตัว',
-              caption: 'ข้อมูลของคุณอยู่ในเครื่อง ไม่ถูกส่งออก',
-              url: NimitLinks.privacy,
-            ),
-            const SizedBox(height: 12),
-            _LinkCard(
-              title: 'ติดต่อ / ช่วยเหลือ',
-              caption: 'ถามปัญหา แจ้งข้อผิดพลาด หรือทักท้วงที่มา',
-              url: NimitLinks.support,
-            ),
           ],
-        ),
+          // เปิดคลังตำรา is a real door now: it opens the search screen
+          // over the published library. It spent a while as a plain
+          // statement, after an earlier life as a button that opened
+          // nothing and apologised in a snackbar — a promise the app could
+          // not keep, on the one screen whose whole subject is keeping them.
+          const SizedBox(height: 4),
+          SectionCard(
+            onTap: () => context.go('/library'),
+            child: Row(
+              children: [
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text('เปิดคลังตำรา',
+                          style: textTheme.titleSmall!
+                              .copyWith(fontWeight: FontWeight.w700)),
+                      const SizedBox(height: 2),
+                      DisclaimerText(count != null
+                          ? 'ค้นสัญลักษณ์จากคลังอ้างอิง $count รายการ พร้อมที่มาและข้อความต้นฉบับ'
+                          : 'ค้นสัญลักษณ์พร้อมที่มาและข้อความต้นฉบับ'),
+                    ],
+                  ),
+                ),
+                const SizedBox(width: 12),
+                const Icon(Icons.chevron_right,
+                    size: 20, color: NimitColors.inkSoft),
+              ],
+            ),
+          ),
+          const SizedBox(height: 24),
+          const SectionHeader('ตรวจสอบตำราที่ต้นทาง'),
+          const SizedBox(height: 12),
+          // The custodian of the tradition, linked so a sceptical reader has
+          // somewhere to go that is not this app. The caption is careful: a
+          // pointer is not an endorsement, and claiming one would be exactly
+          // the sort of unearned authority the tier badges exist to prevent.
+          _LinkCard(
+            title: 'หอสมุดแห่งชาติ',
+            caption: 'ค้นตำราต้นฉบับที่ผู้ดูแลตัวจริง — นิมิตไม่ได้รับ'
+                'การรับรองจากหอสมุดแห่งชาติ',
+            url: NimitLinks.nationalLibrary,
+          ),
+          const SizedBox(height: 24),
+          const SectionHeader('เกี่ยวกับแอป'),
+          const SizedBox(height: 12),
+          _LinkCard(
+            title: 'นโยบายความเป็นส่วนตัว',
+            caption: 'ข้อมูลของคุณอยู่ในเครื่อง ไม่ถูกส่งออก',
+            url: NimitLinks.privacy,
+          ),
+          const SizedBox(height: 12),
+          _LinkCard(
+            title: 'ติดต่อ / ช่วยเหลือ',
+            caption: 'ถามปัญหา แจ้งข้อผิดพลาด หรือทักท้วงที่มา',
+            url: NimitLinks.support,
+          ),
+        ],
       ),
     );
   }

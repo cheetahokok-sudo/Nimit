@@ -22,6 +22,14 @@ abstract final class NimitLinks {
   /// ติดต่อ / ช่วยเหลือ.
   static const support = 'https://sites.google.com/view/nimitluck/support';
 
+  /// หอสมุดแห่งชาติ — the National Library of Thailand's own front page.
+  ///
+  /// The home page deliberately, not a deep link into a scanned volume: this is
+  /// a pointer for a reader who wants to go and check the tradition at its
+  /// custodian, and deep links into their catalogue rot. นิมิต does not claim
+  /// the Library endorses it, and the caption on the card says so.
+  static const nationalLibrary = 'https://www.nlt.go.th/';
+
   /// Sentinel. Any URL equal to this fails the suite by design.
   static const _unpublished = 'https://example.invalid/not-published-yet';
 
