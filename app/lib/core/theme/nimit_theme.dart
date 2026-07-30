@@ -28,6 +28,12 @@ abstract final class NimitColors {
   static const pastelBlue = Color(0xFFDAE4F2);
   static const pastelCream = Color(0xFFF3EBDC);
 
+  /// The warm end of the launch mark's cloud gradient (peach → pink →
+  /// lavender). Added for tool/generate_launch_images.dart rather than as a
+  /// chip: every other pastel here is cool or neutral, and the cloud needs a
+  /// warm start or the gradient reads as grey.
+  static const pastelPeach = Color(0xFFF8D3B0);
+
   // Semantic
   static const successBg = Color(0xFFDFEBD9);
   static const successInk = Color(0xFF3E6242);

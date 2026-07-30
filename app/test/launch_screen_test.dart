@@ -10,14 +10,15 @@
 // next person to open the storyboard in Xcode will be offered "White" as a
 // helpful default.
 //
-// NOT ASSERTED HERE YET: that LaunchImage*.png are real artwork. All three are
-// currently Flutter's 68-byte 1x1 transparent placeholders, which is why the
-// build log carries "Launch image is set to the default placeholder icon".
-// Adding that guard now would fail the suite and block the release, so it lands
-// with the artwork it is meant to protect — see the pending test at the bottom,
-// which names the requirement without pretending it is met.
+// The third test guards the artwork itself. All three LaunchImage*.png were
+// Flutter's 68-byte 1x1 transparent placeholders until tool/generate_launch_images
+// painted them, which is what build #8 reported as "Launch image is set to the
+// default placeholder icon". A `flutter create` in the wrong directory restores
+// those placeholders silently, and nothing else in the suite would notice.
 
+import 'dart:convert';
 import 'dart:io';
+import 'dart:typed_data';
 
 import 'package:flutter_test/flutter_test.dart';
 import 'package:nimit/core/theme/nimit_theme.dart';
@@ -71,7 +72,8 @@ void main() {
 
   test('launch images are real artwork, not the Flutter placeholder', () {
     // Flutter's template ships three 68-byte 1x1 transparent PNGs. Any real
-    // launch image is far larger, so size alone separates them.
+    // launch image is far larger, so size alone separates them — no need to
+    // decode anything to catch the regression this is actually about.
     for (final name in const [
       'LaunchImage.png',
       'LaunchImage@2x.png',
@@ -79,9 +81,29 @@ void main() {
     ]) {
       final bytes = File('$_launchImageDir/$name').lengthSync();
       expect(bytes, greaterThan(1000),
-          reason: '$name is $bytes bytes — still the 68-byte placeholder. '
-              'Apple reports this as "Launch image is set to the default '
-              'placeholder icon".');
+          reason: '$name is $bytes bytes — that is the 68-byte Flutter '
+              'placeholder. Apple reports it as "Launch image is set to the '
+              'default placeholder icon". Repaint with: '
+              'flutter test tool/generate_launch_images.dart');
     }
-  }, skip: 'Pending the นิมิต logo artwork — remove skip when it lands.');
+  });
+
+  test('the launch mark is opaque, and its field is cream', () {
+    // The storyboard centres this image on cream with contentMode="center", so
+    // the drawing's own field must be the SAME cream or the mark shows as a
+    // rectangle with visible edges. Colour type 2 (no alpha) is what makes that
+    // safe to rely on: a transparent field would composite instead of matching.
+    final bytes = File('$_launchImageDir/LaunchImage@3x.png').readAsBytesSync();
+    expect(bytes.sublist(0, 8),
+        [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A],
+        reason: 'not a PNG');
+    expect(latin1.decode(bytes.sublist(12, 16)), 'IHDR');
+    expect(bytes[25], 2,
+        reason: 'launch image must be truecolour with NO alpha (type 2), so its '
+            'cream field matches the storyboard exactly rather than blending');
+
+    final data = ByteData.sublistView(bytes);
+    expect(data.getUint32(16), 720, reason: '@3x width');
+    expect(data.getUint32(20), 720, reason: '@3x height');
+  });
 }
