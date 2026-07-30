@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import 'package:share_plus/share_plus.dart';
 
+import '../../core/brand/nimit_mark.dart';
 import '../../core/theme/nimit_theme.dart';
 import '../../core/widgets/section.dart';
 import '../../data/providers.dart';
@@ -123,13 +124,43 @@ class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
           style: textTheme.headlineSmall!.copyWith(fontWeight: FontWeight.w800),
         ),
         const SizedBox(height: 12),
-        // Only the card itself is inside the boundary — the toggles and buttons
-        // below must not appear in the shared image.
+        // Only the card and its field are inside the boundary — the toggles and
+        // buttons below must not appear in the shared image.
+        //
+        // THE FIELD IS NOT DECORATION. Before it, the boundary wrapped DarkCard
+        // directly, so the captured PNG was exactly that widget's bounding box —
+        // and DarkCard is a rounded rectangle. Its four corners came out
+        // TRANSPARENT, with antialiased half-pixels along each curve, which a chat
+        // bubble renders as white wedges with a halo. The card was also flush to
+        // all four edges, so it read as cropped rather than composed.
+        //
+        // An opaque field fixes both: the image is fully opaque, and the rounded
+        // card floats on cream with margin. test/share_card_test.dart asserts the
+        // opacity so this cannot regress into a transparent capture again.
         RepaintBoundary(
           key: _cardKey,
-          child: DarkCard(
-            padding: const EdgeInsets.all(24),
-            child: Column(
+          child: Container(
+            color: NimitColors.cream,
+            child: Stack(
+              clipBehavior: Clip.hardEdge,
+              children: [
+                // The mark as texture, cropped off the bottom-right corner. At 9 %
+                // it reads as a watermark; at 40 % it reads as a mistake. It sits
+                // BEHIND the card and therefore never touches the dream text or
+                // the numbers, which are the reason anyone screenshots this.
+                Positioned(
+                  right: -42,
+                  bottom: -46,
+                  child: Opacity(
+                    opacity: 0.09,
+                    child: NimitMark(size: 168, star: false),
+                  ),
+                ),
+                Padding(
+                  padding: const EdgeInsets.all(18),
+                  child: DarkCard(
+                    padding: const EdgeInsets.all(24),
+                    child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Row(
@@ -142,11 +173,10 @@ class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
                         ),
                       ),
                     ),
-                    const Icon(
-                      Icons.nightlight_round,
-                      color: NimitColors.gold,
-                      size: 22,
-                    ),
+                    // The real mark, not Material's nightlight_round. A borrowed
+                    // icon on a card people reshare is the one place the app
+                    // looks like a template.
+                    const NimitMark(size: 26),
                   ],
                 ),
                 const SizedBox(height: 16),
@@ -203,6 +233,26 @@ class _ShareCardScreenState extends ConsumerState<ShareCardScreen> {
                   'nimit.app/d/8Q2F',
                   style: textTheme.labelSmall!.copyWith(
                     color: NimitColors.gold,
+                  ),
+                ),
+                // Wordmark. A reshared screenshot loses every bit of context
+                // except what is drawn on it, so the card says whose it is.
+                const SizedBox(height: 14),
+                Row(
+                  children: [
+                    const NimitMark(size: 17, star: false),
+                    const SizedBox(width: 6),
+                    Text(
+                      'นิมิต',
+                      style: textTheme.labelSmall!.copyWith(
+                        color: NimitColors.onDarkSoft,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ],
+                ),
+                      ],
+                    ),
                   ),
                 ),
               ],

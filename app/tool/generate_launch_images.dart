@@ -42,6 +42,7 @@ import 'dart:ui' as ui;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
+import 'package:nimit/core/brand/nimit_mark.dart';
 import 'package:nimit/core/theme/nimit_theme.dart';
 
 /// Filenames are fixed by LaunchImage.imageset/Contents.json, which Xcode owns.
@@ -78,128 +79,25 @@ Future<void> _write(String path, int size) async {
   print('wrote $path ($size×$size)');
 }
 
-/// จันทร์เสี้ยวเหนือเมฆ — the crescent and star of the app icon, over a cloud,
-/// on cream.
+/// The mark, on cream, at launch-screen proportions.
 ///
-/// The crescent and star keep the icon's geometry, so the launch screen and the
-/// home-screen icon are recognisably one brand; only the field colour and the
-/// cloud differ.
+/// The drawing lives in lib/core/brand/nimit_mark.dart. This class is only the
+/// launch-specific part: the cream field, and a gentler fill than the icon uses
+/// because a launch screen has room the 60 px icon does not.
 class _LaunchMark {
   const _LaunchMark();
 
-  /// Vertical centre of the composition as drawn, measured from its own
-  /// extremes: the crescent's top edge at 0.155 (0.335 − 0.180) and the cloud's
-  /// underside at 0.698 (0.578 + 0.120).
-  ///
-  /// It is NOT 0.5, and that was a visible flaw: the mark had 0.155 of space
-  /// above it and 0.302 below, so it floated high on the launch screen. Rather
-  /// than re-tune fourteen coordinates and re-derive this every time one moves,
-  /// the drawing keeps its own numbers and the transform below recentres it.
-  static const _markCentreY = 0.4265;
-
-  /// How much of the square the mark spans once recentred. At 1.0 it drew 0.700
-  /// wide, leaving 15 % dead on each side; 1.25 takes it to 0.875 with a 6 %
-  /// margin, and the vertical extent to 0.679 — still short of the edges, which
-  /// is deliberate. A launch mark that touches the border reads as a cropped
+  /// 1.25 rather than the icon's 1.28 — marginally more air, deliberately short
+  /// of the edges. A launch mark that touches the border reads as a cropped
   /// screenshot rather than a logo.
   static const _fill = 1.25;
 
   void paint(Canvas canvas, Size size) {
-    final s = size.width;
-
-    // Edge to edge and fully opaque — this is what lets the encoder drop alpha,
-    // and what makes the image invisible against the storyboard's cream. Painted
-    // BEFORE the transform so it always fills the square, whatever _fill is.
-    canvas.drawRect(
-        Rect.fromLTWH(0, 0, s, s), Paint()..color = NimitColors.cream);
-
-    // Map the composition's own centre onto the canvas centre, scaled. Reads
-    // backwards, applies forwards: the last translate runs first.
-    canvas.save();
-    canvas.translate(s * 0.5, s * 0.5);
-    canvas.scale(_fill);
-    canvas.translate(s * -0.5, s * -_markCentreY);
-
-    _cloud(canvas, s);
-
-    // Crescent above the cloud, overlapping it as the artwork does. A filled
-    // disc with a second disc punched out: a stroked arc thins to nothing at the
-    // small end, where this shape still reads. saveLayer so dstOut cuts the
-    // crescent only, not the cream behind it.
-    canvas.saveLayer(Rect.fromLTWH(0, 0, s, s), Paint());
-    canvas.drawCircle(Offset(s * 0.470, s * 0.335), s * 0.180,
-        Paint()..color = NimitColors.gold);
-    canvas.drawCircle(Offset(s * 0.560, s * 0.268), s * 0.157,
-        Paint()..blendMode = BlendMode.dstOut);
-    canvas.restore();
-
-    _star(canvas, Offset(s * 0.700, s * 0.300), s * 0.052, s * 0.017);
-
-    canvas.restore();
-  }
-
-  /// A four-pointed star with concave sides — the shape Thai temple art uses
-  /// for a light, and unmistakably not the five-pointed flag star.
-  void _star(Canvas canvas, Offset c, double outer, double inner) {
-    final path = Path()
-      ..moveTo(c.dx, c.dy - outer)
-      ..quadraticBezierTo(c.dx + inner, c.dy - inner, c.dx + outer, c.dy)
-      ..quadraticBezierTo(c.dx + inner, c.dy + inner, c.dx, c.dy + outer)
-      ..quadraticBezierTo(c.dx - inner, c.dy + inner, c.dx - outer, c.dy)
-      ..quadraticBezierTo(c.dx - inner, c.dy - inner, c.dx, c.dy - outer)
-      ..close();
-    canvas.drawPath(path, Paint()..color = NimitColors.gold);
-  }
-
-  /// A bank of puffs on a long sweeping base, filled peach → pink → lavender.
-  ///
-  /// Built as a union of ovals over a rounded slab rather than one hand-fitted
-  /// bezier: overlapping ovals with the default non-zero fill merge into a single
-  /// silhouette, and each puff is then three legible numbers instead of four
-  /// control points nobody can adjust later.
-  void _cloud(Canvas canvas, double s) {
-    final bounds = Rect.fromLTWH(s * 0.150, s * 0.470, s * 0.700, s * 0.260);
-
-    final body = Path()..fillType = PathFillType.nonZero;
-
-    // The base slab, which ties every puff together and gives the cloud its flat
-    // underside.
-    //
-    // Its top edge sits at 0.578, not 0.600. At 0.600 the two puffs either side
-    // of centre only grazed each other about a pixel above the slab, leaving a
-    // sliver of cream showing through the middle of the silhouette — a white
-    // speck, visible at 720 px and impossible to explain. Raising the slab
-    // overlaps both puffs properly; the underside is unchanged because the
-    // height grew by the same amount.
-    body.addRRect(RRect.fromRectAndRadius(
-      Rect.fromLTWH(bounds.left, s * 0.578, bounds.width, s * 0.120),
-      Radius.circular(s * 0.060),
-    ));
-
-    // Puffs: x, y, r as fractions. Tallest left of centre, stepping down to the
-    // right, which is how the artwork stacks them.
-    const puffs = <List<double>>[
-      [0.300, 0.560, 0.082],
-      [0.395, 0.535, 0.070],
-      [0.500, 0.560, 0.076],
-      [0.610, 0.575, 0.062],
-      [0.690, 0.560, 0.072],
-    ];
-    for (final p in puffs) {
-      body.addOval(Rect.fromCircle(
-          center: Offset(s * p[0], s * p[1]), radius: s * p[2]));
-    }
-
-    canvas.drawPath(
-        body,
-        Paint()
-          ..shader = const LinearGradient(
-            colors: [
-              NimitColors.pastelPeach,
-              NimitColors.pastelPink,
-              NimitColors.pastelLavender,
-            ],
-          ).createShader(bounds));
+    // The cream field is passed to the mark so it fills the square edge to edge:
+    // that is what lets the encoder drop alpha, and what makes the image
+    // invisible against LaunchScreen.storyboard's identical cream.
+    paintNimitMark(canvas, size.width,
+        field: NimitColors.cream, fill: _fill);
   }
 }
 
