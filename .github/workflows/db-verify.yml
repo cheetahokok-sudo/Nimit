@@ -180,6 +180,57 @@ jobs:
           psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/zodiac_v2_month_groups.sql
           psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/zodiac_v2_month_groups.sql
 
+      # ตำรับทำนายฝัน ๑๐๘ ข้อ (หน้า ๒๒๗–๒๓๑) — the first dream material from the
+      # owned compilation. Lexicon before readings: the 16 new symbols are
+      # draft, and interpretations_v12 joins them by concept_key, so the reverse
+      # order silently loses 16 of its 63 rows.
+      #
+      # Applied twice: both files insert through joins over a VALUES CTE, so a
+      # second run must be a no-op rather than a duplicate set. Each carries its
+      # own count assertion, which is what makes the second run meaningful — a
+      # duplicate would push the count past 63 and raise.
+      - name: Apply ๑๐๘ ข้อ dream lexicon and draft readings (twice)
+        run: |
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/dream_symbols_v9_phrommachat_108.sql
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/dream_symbols_v9_phrommachat_108.sql
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/interpretations_v12_phrommachat_108.sql
+          psql "$PGURL" -v ON_ERROR_STOP=1 -q -f supabase/seeds/interpretations_v12_phrommachat_108.sql
+
+      # The refusal is the point of the file, so assert it rather than trust the
+      # seed's own guard: nothing from this mixed compilation may be published
+      # without a second witness, and เครื่องบิน may never carry a reading from
+      # it at all.
+      - name: ๑๐๘ ข้อ stays unpublished, and เครื่องบิน stays empty
+        run: |
+          psql "$PGURL" -v ON_ERROR_STOP=1 -t -c "
+            do \$\$
+            declare bad int;
+            begin
+              select count(*) into bad
+                from content.interpretation i
+                join content.passage p on p.id = i.passage_id
+                join content.edition e on e.id = p.edition_id
+               where e.citekey = 'phrommachat-owned'
+                 and p.sequence between 227 and 231
+                 and i.status = 'published'
+                 and coalesce(array_length(i.corroborating_edition_ids, 1), 0) < 1;
+              if bad > 0 then
+                raise exception '% ๑๐๘-ข้อ reading(s) published with no second witness', bad;
+              end if;
+
+              select count(*) into bad
+                from content.interpretation i
+                join content.symbol s on s.id = i.symbol_id
+                join content.passage p on p.id = i.passage_id
+                join content.edition e on e.id = p.edition_id
+               where s.concept_key = 'DREAM_AIRPLANE'
+                 and e.citekey = 'phrommachat-owned';
+              if bad > 0 then
+                raise exception 'เครื่องบิน carries a reading from the compilation — '
+                  'ข้อ ๓๒/๓๓ are the compiler''s own modern text';
+              end if;
+            end \$\$;"
+
       # The API function the app actually calls. Exercised rather than trusted:
       # the counting rule is arithmetic, and arithmetic nobody runs is a guess.
       - name: วงราศีตามอายุ API answers, and fails closed

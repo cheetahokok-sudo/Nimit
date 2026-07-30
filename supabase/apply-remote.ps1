@@ -141,7 +141,9 @@ if (-not $SkipSeeds) {
     'supabase/seeds/sources_v8_phrommachat_owned.sql',
     'supabase/seeds/zodiac_v1_phrommachat_owned.sql',
     'supabase/seeds/agewheel_v1_phrommachat_owned.sql',
-    'supabase/seeds/zodiac_v2_month_groups.sql'
+    'supabase/seeds/zodiac_v2_month_groups.sql',
+    'supabase/seeds/dream_symbols_v9_phrommachat_108.sql',
+    'supabase/seeds/interpretations_v12_phrommachat_108.sql'
   )
   foreach ($s in $seeds) {
     Write-Host "  applying $s"
