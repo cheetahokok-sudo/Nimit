@@ -49,26 +49,50 @@ workflows:
       # after the suite is green on the new version locally.
       flutter: 3.44.2
       xcode: latest
-      # NO `ios_signing:` BLOCK HERE, ON PURPOSE. It looks like the obvious way
-      # to declare signing, and it is how this file was written first, but it
-      # cost four failed builds to learn what it actually does.
+      # THIS BLOCK'S ERROR MESSAGE LIES, AND IT COST FIVE BUILDS. Read this
+      # before you believe what a failing signing step tells you.
       #
-      # `ios_signing` is resolved during SETUP, before a single script runs, and
-      # it only FETCHES an existing provisioning profile — it will not create
-      # one. app.nimit.nimit was a brand-new App ID with no profile, so setup
-      # died on "No matching profiles found for bundle identifier
-      # app.nimit.nimit and distribution type app_store" and produced no step
-      # log at all. Every guard below, and the whole test gate, was unreachable.
-      # Creating the profile by hand in the developer portal did not fix it
-      # either.
+      # Builds #1–#4 died in SETUP — before any script ran, with no step log at
+      # all — on:
       #
-      # Signing now happens in a script step instead, where --create makes the
-      # profile if it is missing and the output is visible when it is not. The
-      # cost is that signing is no longer declarative; the gain is a build that
-      # explains itself.
+      #   No matching profiles found for bundle identifier "app.nimit.nimit"
+      #   and distribution type "app_store"
+      #
+      # That message points at the provisioning profile. It is not the profile.
+      # Creating the profile by hand in the developer portal changed nothing,
+      # and neither did waiting an hour for Apple's API to catch up.
+      #
+      # The actual cause: Codemagic held no code signing CERTIFICATE. The Apple
+      # portal had one distribution certificate, created long ago by an API key
+      # for another app, whose private key lived only on the machine that made
+      # it. A certificate downloaded from Apple carries the public half only, so
+      # Codemagic had nothing it could sign with — and reported that as a
+      # missing profile.
+      #
+      # Proving it took moving signing into a script step, where
+      # `app-store-connect fetch-signing-files --create` said what was actually
+      # wrong: "Cannot save Signing Certificates without certificate private
+      # key". Settings → Code signing identities then confirmed it in one line:
+      # "No certificates shared with the team".
+      #
+      # The fix was in the UI, not this file: generate an Apple Distribution
+      # certificate in Codemagic (Settings → Code signing identities → iOS
+      # certificates → Generate certificate), so Codemagic generates the keypair
+      # and KEEPS the private key. It is stored as `ios-distribution`.
+      #
+      # ios_signing is restored because consuming that stored identity is
+      # precisely what it does; the raw CLI cannot, since it fetches the
+      # certificate from Apple and would need the private key passed in by hand.
+      #
+      # If this ever fails with "No matching profiles found" again, check for a
+      # certificate FIRST. Apple allows two Apple Distribution certificates per
+      # account and both are now used, so the answer will be to fix or re-share
+      # an existing one, not to generate a third.
+      ios_signing:
+        distribution_type: app_store
+        bundle_identifier: app.nimit.nimit
       vars:
         APP_DIR: app
-        BUNDLE_ID: app.nimit.nimit
 
     triggering:
       events:
@@ -104,32 +128,17 @@ workflows:
           flutter analyze
           flutter test
 
-      # Signing, in four commands that each do one thing:
-      #
-      #   fetch-signing-files --create  gets the App Store profile for BUNDLE_ID
-      #                                 and CREATES it, plus a distribution
-      #                                 certificate, if either is missing. This
-      #                                 is the part `ios_signing` could not do.
-      #   keychain initialize           makes a fresh keychain for this build
-      #   keychain add-certificates     loads the fetched certificate into it
-      #   xcode-project use-profiles    writes the profile into the Xcode project
-      #                                 and generates the export_options.plist
-      #                                 the build step reads by path
-      #
-      # APP_STORE_CONNECT_* credentials are injected by the app_store_connect
-      # integration declared above, so no key material appears here.
-      #
-      # Runs after the test gate on purpose: no point signing, or creating
-      # portal artefacts, for a binary the suite has not cleared.
-      - name: Fetch or create signing files, then apply them
+      # `ios_signing` above fetches the stored certificate and the provisioning
+      # profile and loads them into the keychain, but it does NOT write them into
+      # the Xcode project — that is this command's job, and it is also what
+      # generates the export_options.plist the build step reads by path. Without
+      # it the archive is unsigned and the build fails on a file that was never
+      # created. Runs after the test gate on purpose: no point signing a binary
+      # the suite has not cleared.
+      - name: Apply signing profiles to the Xcode project
         working_directory: app
         script: |
           set -e
-          app-store-connect fetch-signing-files "$BUNDLE_ID" \
-            --type IOS_APP_STORE \
-            --create
-          keychain initialize
-          keychain add-certificates
           xcode-project use-profiles
 
       - name: Build signed IPA
