@@ -1,7 +1,21 @@
 name: nimit
 description: "นิมิต — ฝัน ดวง ความเชื่อ | Thai dream, belief & lottery companion."
 publish_to: 'none'
-version: 0.1.0+1
+# 1.0.0 because this is the submission candidate, not because the library is
+# finished — it is not. What changed is the claim being made: a version on the
+# App Store says "this is the product", and 0.1.0 on a public listing reads as
+# unfinished to every user who sees it.
+#
+# It also has to be 1.0.0 to ship at all. App Store Connect already holds an
+# "iOS App Version 1.0" record in Prepare for Submission, and a build can only be
+# attached to a version whose string matches — so the 0.1.0 builds already on
+# TestFlight could never have been submitted against it. Keep this and the ASC
+# version string identical; three digits here because pub requires semver, so the
+# ASC record is the side that moves to 1.0.0.
+#
+# The build number is overridden by $BUILD_NUMBER in codemagic.yaml, so the +1 is
+# nominal — CI is the source of truth for it.
+version: 1.0.0+1
 
 environment:
   sdk: ^3.12.2
