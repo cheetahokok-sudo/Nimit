@@ -8,6 +8,7 @@ import '../../core/widgets/section.dart';
 import '../../core/widgets/source_badge.dart';
 import '../../data/models/dream.dart';
 import '../../data/providers.dart';
+import '../../data/repositories/repositories.dart';
 
 class DreamResultScreen extends ConsumerStatefulWidget {
   const DreamResultScreen({super.key});
@@ -343,10 +344,17 @@ class _WatchableNumbers extends ConsumerWidget {
                     await notifier.remove(n);
                     return;
                   }
-                  await notifier.watch(n, sourceTh: sourceTh);
+                  final dropped = await notifier.watch(n, sourceTh: sourceTh);
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('เก็บเลข $n ไว้ดูตอนหวยออก'),
+                    // Say when a number was pushed out. The cap used to evict
+                    // the oldest silently, so keeping a 21st number destroyed
+                    // one the user had deliberately saved.
+                    content: Text(dropped == null
+                        ? 'เก็บเลข $n ไว้ดูตอนหวยออก'
+                        : 'เก็บเลข $n แล้ว — เลข $dropped หลุดออกจากรายการ '
+                            'เพราะเก็บได้สูงสุด '
+                            '${WatchedNumbersRepository.maxWatched} เลข'),
                     action: SnackBarAction(
                       label: 'ไปตรวจหวย',
                       onPressed: () => context.go('/lottery'),

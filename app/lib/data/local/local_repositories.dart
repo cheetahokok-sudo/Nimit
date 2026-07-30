@@ -107,7 +107,7 @@ class LocalWatchedNumbersRepository implements WatchedNumbersRepository {
 
   /// Enough to cover a few dreams without the ตรวจหวย screen turning into a
   /// wall of numbers, which is the shape a เลขเด็ด tip sheet takes.
-  static const _max = 20;
+  static const _max = WatchedNumbersRepository.maxWatched;
 
   @override
   Future<List<WatchedNumber>> all() async {
@@ -115,13 +115,23 @@ class LocalWatchedNumbersRepository implements WatchedNumbersRepository {
   }
 
   @override
-  Future<void> save(WatchedNumber number) async {
+  Future<String?> save(WatchedNumber number) async {
     final list = await all();
     list.removeWhere((n) => n.number == number.number);
     list.insert(0, number);
-    if (list.length > _max) list.removeRange(_max, list.length);
+
+    // Re-saving a number already on the list is a move to the top, not an
+    // addition, so the eviction check has to come after the removeWhere above or
+    // it reports a drop that never happened.
+    String? dropped;
+    if (list.length > _max) {
+      dropped = list[_max].number;
+      list.removeRange(_max, list.length);
+    }
+
     await _prefs.setString(
         _key, jsonEncode([for (final n in list) n.toJson()]));
+    return dropped;
   }
 
   @override

@@ -293,13 +293,17 @@ class WatchedNumbersNotifier extends AsyncNotifier<List<WatchedNumber>> {
   Future<List<WatchedNumber>> build() =>
       ref.watch(watchedNumbersRepositoryProvider).all();
 
-  Future<void> watch(String number, {String? sourceTh}) async {
-    await ref.read(watchedNumbersRepositoryProvider).save(WatchedNumber(
-          number: number.trim(),
-          savedAt: DateTime.now(),
-          sourceTh: sourceTh,
-        ));
+  /// Returns the number the cap pushed out, or null if nothing was dropped, so
+  /// the caller can tell the user rather than lose a saved number in silence.
+  Future<String?> watch(String number, {String? sourceTh}) async {
+    final dropped =
+        await ref.read(watchedNumbersRepositoryProvider).save(WatchedNumber(
+              number: number.trim(),
+              savedAt: DateTime.now(),
+              sourceTh: sourceTh,
+            ));
     ref.invalidateSelf();
+    return dropped;
   }
 
   Future<void> remove(String number) async {

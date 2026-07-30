@@ -7,6 +7,7 @@ import '../../core/widgets/section.dart';
 import '../../core/widgets/source_badge.dart';
 import '../../data/models/library.dart';
 import '../../data/providers.dart';
+import '../../data/repositories/repositories.dart';
 
 /// เรื่องราวของสัญลักษณ์ — the library browse screen.
 ///
@@ -187,10 +188,17 @@ class _WatchableNumbers extends ConsumerWidget {
                     await notifier.remove(n);
                     return;
                   }
-                  await notifier.watch(n, sourceTh: 'จากตำรา · ${story.nameTh}');
+                  final dropped = await notifier.watch(n,
+                      sourceTh: 'จากตำรา · ${story.nameTh}');
                   if (!context.mounted) return;
                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-                    content: Text('เก็บเลข $n ไว้ดูตอนหวยออก'),
+                    // Say when a number was pushed out — see the same message
+                    // on the dream result screen.
+                    content: Text(dropped == null
+                        ? 'เก็บเลข $n ไว้ดูตอนหวยออก'
+                        : 'เก็บเลข $n แล้ว — เลข $dropped หลุดออกจากรายการ '
+                            'เพราะเก็บได้สูงสุด '
+                            '${WatchedNumbersRepository.maxWatched} เลข'),
                     action: SnackBarAction(
                       label: 'ไปตรวจหวย',
                       onPressed: () => context.go('/lottery'),

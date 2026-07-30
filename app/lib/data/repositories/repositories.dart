@@ -115,8 +115,21 @@ abstract interface class SavedTicketsRepository {
 /// Separate from [SavedTicketsRepository] because a watched number is not a
 /// ticket: it can be reported as ออก or ไม่ออก, never as an amount of money.
 abstract interface class WatchedNumbersRepository {
+  /// The most numbers that can be kept at once. Beyond this the oldest is
+  /// dropped — see [save], which reports what went.
+  static const maxWatched = 20;
+
   Future<List<WatchedNumber>> all();
-  Future<void> save(WatchedNumber number);
+
+  /// Saves [number] at the top of the list, newest first.
+  ///
+  /// Returns the number the [maxWatched] cap pushed out, or null if nothing was
+  /// dropped. It used to return void and evict in silence, so keeping a
+  /// twenty-first number quietly destroyed one the user had deliberately saved —
+  /// on the one screen in the app that is about money. The caller is expected to
+  /// say what happened.
+  Future<String?> save(WatchedNumber number);
+
   Future<void> remove(String number);
 }
 

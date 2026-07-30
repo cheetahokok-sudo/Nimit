@@ -3,6 +3,7 @@ import 'package:nimit/data/local/local_repositories.dart';
 import 'package:nimit/data/models/dream.dart';
 import 'package:nimit/data/models/fortune.dart';
 import 'package:nimit/data/models/lottery.dart';
+import 'package:nimit/data/repositories/repositories.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 void main() {
@@ -300,6 +301,79 @@ void main() {
 
       expect((await LocalBirthProfileRepository(prefs).load()).date,
           DateTime(1993, 7, 15));
+    });
+  });
+
+  // ── เลขที่ตามอยู่ ─────────────────────────────────────────────────────────
+  //
+  // The cap silently destroyed saved numbers: keeping a twenty-first evicted the
+  // oldest and told nobody, on the one screen in the app that is about money.
+  // save() now reports what it dropped so the UI can say so, and these hold that
+  // contract — including the case that made it easy to get wrong.
+  group('watched numbers', () {
+    WatchedNumber num(String n) =>
+        WatchedNumber(number: n, savedAt: DateTime(2026, 7, 30));
+
+    test('saving under the cap drops nothing and keeps newest first', () async {
+      final repo =
+          LocalWatchedNumbersRepository(await SharedPreferences.getInstance());
+
+      expect(await repo.save(num('12')), isNull);
+      expect(await repo.save(num('34')), isNull);
+
+      expect([for (final w in await repo.all()) w.number], ['34', '12']);
+    });
+
+    test('past the cap it reports the number pushed out', () async {
+      final repo =
+          LocalWatchedNumbersRepository(await SharedPreferences.getInstance());
+      const max = WatchedNumbersRepository.maxWatched;
+
+      // 00..19 — the first saved is '00', so it is the oldest and goes first.
+      for (var i = 0; i < max; i++) {
+        expect(await repo.save(num(i.toString().padLeft(2, '0'))), isNull,
+            reason: 'nothing should drop while filling to the cap');
+      }
+      expect(await repo.all(), hasLength(max));
+
+      expect(await repo.save(num('99')), '00',
+          reason: 'the oldest is evicted, and save must name it');
+      final after = await repo.all();
+      expect(after, hasLength(max), reason: 'the cap still holds');
+      expect(after.first.number, '99');
+      expect([for (final w in after) w.number], isNot(contains('00')));
+    });
+
+    test('re-saving a number already held is a move, not an eviction', () async {
+      // The trap: the eviction check has to run AFTER the duplicate is removed.
+      // Checking length first reports a drop that never happened, and the UI
+      // would tell the user it had thrown away a number it still has.
+      final repo =
+          LocalWatchedNumbersRepository(await SharedPreferences.getInstance());
+      const max = WatchedNumbersRepository.maxWatched;
+
+      for (var i = 0; i < max; i++) {
+        await repo.save(num(i.toString().padLeft(2, '0')));
+      }
+
+      expect(await repo.save(num('05')), isNull,
+          reason: 'the list was full but this number was already in it');
+      final after = await repo.all();
+      expect(after, hasLength(max));
+      expect(after.first.number, '05', reason: 'moved to the top');
+      expect([for (final w in after) w.number].where((n) => n == '05'),
+          hasLength(1), reason: 'and not duplicated');
+    });
+
+    test('remove takes a number out', () async {
+      final repo =
+          LocalWatchedNumbersRepository(await SharedPreferences.getInstance());
+      await repo.save(num('12'));
+      await repo.save(num('34'));
+
+      await repo.remove('12');
+
+      expect([for (final w in await repo.all()) w.number], ['34']);
     });
   });
 }
