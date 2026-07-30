@@ -54,6 +54,28 @@ const _launchImages = <String, int>{
   'LaunchImage@3x.png': 720,
 };
 
+/// The same mark for Android, at Android's density buckets.
+///
+/// The iOS files cannot simply be copied: Android resolves density folders, not
+/// @2x suffixes, and it needs a 1.5x bucket iOS has no equivalent for. So the
+/// drawing is REDRAWN at each size — 360 px is a 360 px painting, not a resample
+/// of 240 or 480 — which is the whole reason this file paints rather than scales.
+///
+/// 240 dp at mdpi, matching the iOS 240 pt mark, so the two platforms show the
+/// same mark at the same physical size.
+///
+/// xxxhdpi (4x) matters more here than it looks: it is the bucket a 1080p budget
+/// phone with a high density setting lands in, and a missing bucket makes Android
+/// upscale the next one down — a soft mark on exactly the cheap hardware this app
+/// is aimed at.
+const _androidLaunchImages = <String, int>{
+  'drawable-mdpi': 240,
+  'drawable-hdpi': 360,
+  'drawable-xhdpi': 480,
+  'drawable-xxhdpi': 720,
+  'drawable-xxxhdpi': 960,
+};
+
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
@@ -61,6 +83,13 @@ void main() {
     const dir = 'ios/Runner/Assets.xcassets/LaunchImage.imageset';
     for (final entry in _launchImages.entries) {
       await _write('$dir/${entry.key}', entry.value);
+    }
+
+    // res/drawable-*/launch_image.png — the name is referenced by
+    // res/drawable-v21/launch_background.xml and res/drawable/launch_background.xml.
+    for (final entry in _androidLaunchImages.entries) {
+      await _write(
+          'android/app/src/main/res/${entry.key}/launch_image.png', entry.value);
     }
   });
 }

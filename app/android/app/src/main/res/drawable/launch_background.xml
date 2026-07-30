@@ -1,12 +1,27 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="@android:color/white" />
+<!-- The Android cold-start screen.
 
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
+     This was Flutter's template: a single @android:color/white item, with the
+     bitmap commented out. So Android cold-started white and then painted cream
+     on the first Flutter frame — exactly the white flash that was fixed on iOS
+     in LaunchScreen.storyboard, still shipping here because that fix never
+     crossed platforms.
+
+     Cream first, then the mark centred on top, matching iOS: same drawing, same
+     field colour, same composition. The mark PNGs are generated at Android
+     densities by tool/generate_launch_images.dart — they are not resamples of
+     the iOS ones, they are the same geometry redrawn per density.
+
+     Budget phones are the reason to care. A cold start on an entry-level
+     OPPO or Vivo is slow enough that the flash is not a flicker but a beat, and
+     it is the first thing the app ever shows anyone.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/nimit_cream" />
+
+    <item>
         <bitmap
             android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+            android:src="@drawable/launch_image" />
+    </item>
 </layer-list>

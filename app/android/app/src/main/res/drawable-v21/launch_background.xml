@@ -1,12 +1,23 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- Modify this file to customize your launch splash screen -->
-<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
-    <item android:drawable="?android:colorBackground" />
+<!-- THIS is the file that actually runs. minSdk is 24, so drawable-v21/ wins
+     over drawable/ on every device the app supports; the sibling in drawable/ is
+     kept only so the resource still resolves if minSdk is ever lowered. Edit both
+     or neither — test/launch_screen_test.dart checks both.
 
-    <!-- You can insert your own image assets here -->
-    <!-- <item>
+     The template had `?android:colorBackground` here, which is the system window
+     colour: WHITE in light mode and BLACK in dark mode. So a cold start on a
+     phone with dark mode enabled flashed black, then cream. Worse than the white
+     flash, and only visible to someone testing in dark mode.
+
+     Cream, unconditionally, in both light and dark. นิมิต has one cream page
+     colour and no dark theme; the launch screen must not invent one.
+-->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item android:drawable="@color/nimit_cream" />
+
+    <item>
         <bitmap
             android:gravity="center"
-            android:src="@mipmap/launch_image" />
-    </item> -->
+            android:src="@drawable/launch_image" />
+    </item>
 </layer-list>

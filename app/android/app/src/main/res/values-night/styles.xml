@@ -12,7 +12,12 @@
          running.
 
          This Theme is only used starting with V2 of Flutter's Android embedding. -->
+    <!-- Cream here too, deliberately. นิมิต has ONE page colour and ships no dark
+         theme, so a dark-mode device must not get a black window behind a cream
+         UI — that shows as black bands during the splash handover and behind the
+         keyboard. Matching values/styles.xml is the correct answer until the app
+         itself has a dark theme, at which point both files change together. -->
     <style name="NormalTheme" parent="@android:style/Theme.Black.NoTitleBar">
-        <item name="android:windowBackground">?android:colorBackground</item>
+        <item name="android:windowBackground">@color/nimit_cream</item>
     </style>
 </resources>

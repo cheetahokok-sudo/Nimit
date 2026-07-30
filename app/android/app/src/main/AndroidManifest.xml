@@ -1,6 +1,18 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- WITHOUT THIS LINE THE RELEASE BUILD HAS NO NETWORK, AND LOOKS BROKEN.
+         Flutter's template declares INTERNET only in src/debug/AndroidManifest.xml,
+         where it exists for hot reload. Debug and profile builds merge it in; a
+         release AAB does not. So `flutter run` works perfectly and the Play
+         build fails every Supabase call — คลังตำรา search, symbol stories and
+         ตรวจหวย results all dead, with no crash to point at it.
+
+         Nimit is a client for a remote corpus. It cannot function without this,
+         and it is the only permission the app asks for: no location, no storage,
+         no contacts, nothing to explain on the Data safety form. -->
+    <uses-permission android:name="android.permission.INTERNET"/>
+
     <application
-        android:label="nimit"
+        android:label="@string/app_name"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

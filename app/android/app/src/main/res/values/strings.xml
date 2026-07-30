@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- The launcher name.
+
+     It read "nimit" — lowercase Latin, the Flutter project name — which is what
+     `flutter create` writes and what would have shipped to Play. On a Thai
+     phone, under a Thai-language icon grid, that is the one word in the app the
+     user cannot read, in the one place they always see it.
+
+     นิมิต here, matching CFBundleDisplayName on iOS exactly. Deliberately the
+     DEFAULT rather than a values-th override: this app has no non-Thai audience
+     to fall back for, and a values/ default of "Nimit" with a Thai override
+     would show Latin on any device set to another language.
+-->
+<resources>
+    <string name="app_name">นิมิต</string>
+</resources>

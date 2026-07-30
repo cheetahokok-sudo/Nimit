@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- NimitColors.cream, as a hex literal, for the same reason
+     LaunchScreen.storyboard carries three hand-written floats: resource XML
+     cannot import Dart, so the value has to be duplicated here.
+
+     Duplicated values drift, so test/launch_screen_test.dart parses this file
+     and compares it against NimitColors.cream. Change the palette and the suite
+     tells you this file exists.
+-->
+<resources>
+    <color name="nimit_cream">#FFF6F0E4</color>
+</resources>

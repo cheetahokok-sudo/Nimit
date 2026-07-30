@@ -1,5 +1,12 @@
 # ============================================================================
-# Codemagic — iOS build and TestFlight delivery for นิมิต.
+# Codemagic — store delivery for นิมิต.
+#
+#   ios-testflight   iOS: test, sign, build IPA, upload to TestFlight
+#   android-play     Android: test, sign, build AAB as an artifact
+#
+# WHY ANDROID MATTERS MORE THAN THE FILE ORDER SUGGESTS. Thailand is an Android
+# market, and this app's audience is on entry-level OPPO and Vivo hardware, not
+# on iPhones. iOS went first only because that submission was already in flight.
 #
 # ONE NON-NEGOTIABLE IN THIS FILE. The app defaults to mock repositories, and
 # a release built without the remote dart-defines ships demo lottery data on a
@@ -24,6 +31,17 @@
 #                            RLS and the api schema grants are the boundary>
 #   * Bundle id app.nimit.nimit registered in the developer portal, and the
 #     app record created in App Store Connect.
+#   * FOR ANDROID: an upload keystore added under Settings → Code signing
+#     identities → Android keystores, with reference name `nimit-upload-keystore`.
+#     Codemagic can generate it, which is the recommended route — it then holds
+#     the key and its passwords, and neither ever touches this repository.
+#
+#     THE UPLOAD KEY IS NOT RECOVERABLE IN THE ORDINARY SENSE. Play pins the
+#     app to whatever certificate first uploads it. Losing it means asking
+#     Google to reset it; losing it without Play App Signing enrolment means
+#     losing the ability to update the app at all. Enrol in Play App Signing
+#     (the default for new apps) and keep a backup of the keystore somewhere
+#     that is not this machine.
 #
 # The anon key is public by design (it ships inside every client). It still
 # lives in a variable group rather than this file so rotating it is a UI
@@ -185,3 +203,138 @@ workflows:
         submit_to_testflight: true
         # App Store submission stays manual: TestFlight is for finding out
         # what a first Thai user actually experiences before review does.
+
+  # ==========================================================================
+  # Android · Google Play
+  #
+  # Linux, not macOS: an Android build needs no Apple toolchain, and a Linux
+  # instance costs a fraction of the mac_mini_m2 the iOS workflow requires.
+  #
+  # PRODUCES AN ARTIFACT, DOES NOT PUBLISH. See the publishing note at the end
+  # for why that is deliberate for a new Play listing rather than unfinished.
+  # ==========================================================================
+  android-play:
+    name: Android · test, build, signed AAB
+    instance_type: linux_x2
+    max_build_duration: 45
+
+    environment:
+      groups:
+        - nimit_backend
+      flutter: 3.44.2
+      java: 17          # matches sourceCompatibility in app/build.gradle.kts
+      android_signing:
+        - nimit-upload-keystore
+      vars:
+        APP_DIR: app
+
+    triggering:
+      events:
+        - tag
+      tag_patterns:
+        - pattern: 'android-v*'   # separate namespace from ios-v*, so a release
+          include: true           # to one store is never a release to both
+
+    scripts:
+      # Identical to the iOS guard, and identical for the identical reason: the
+      # app falls back to mock repositories without these, and a mock build puts
+      # a fixture draw on a money screen. Duplicated rather than shared because
+      # Codemagic has no include mechanism, and a guard that can be skipped by
+      # editing one shared file is a weaker guard.
+      - name: Guard — refuse a mock-data store binary
+        script: |
+          set -e
+          if [ "$NIMIT_REMOTE" != "true" ] || [ -z "$SUPABASE_URL" ] || [ -z "$SUPABASE_ANON_KEY" ]; then
+            echo "FATAL: backend variables missing (group nimit_backend)."
+            echo "A binary built without them ships demo lottery results to real users."
+            exit 1
+          fi
+
+      - name: Guard — no privileged key in the app tree
+        script: |
+          set -e
+          if grep -ri --include='*.dart' --include='*.yaml' --include='*.plist' \
+               -e 'service_role' -e 'SUPABASE_SERVICE' "$APP_DIR"; then
+            echo "FATAL: privileged key material referenced in the app tree."
+            exit 1
+          fi
+
+      # Fails before the ~10-minute Gradle build rather than during it. Without a
+      # keystore the release build cannot be signed, and an unsigned AAB is not
+      # something Play will take — so there is nothing to gain by finding out
+      # late.
+      - name: Guard — refuse an unsignable release
+        script: |
+          set -e
+          if [ -z "$CM_KEYSTORE_PATH" ] || [ -z "$CM_KEY_ALIAS" ]; then
+            echo "FATAL: no Android keystore available to this build."
+            echo "Add one under Settings → Code signing identities → Android"
+            echo "keystores, with reference name 'nimit-upload-keystore'."
+            echo "Play refuses debug-signed uploads, so there is no fallback."
+            exit 1
+          fi
+
+      - name: Analyze and test
+        working_directory: app
+        script: |
+          set -e
+          flutter pub get
+          flutter analyze
+          flutter test
+
+      # app/android/build.gradle.kts reads this file; it is gitignored, and this
+      # is the only place it exists in CI. Written after the test gate so a red
+      # suite never reaches the signing material.
+      - name: Write key.properties from the Codemagic keystore
+        script: |
+          set -e
+          cat > "$CM_BUILD_DIR/app/android/key.properties" <<EOF
+          storeFile=$CM_KEYSTORE_PATH
+          storePassword=$CM_KEYSTORE_PASSWORD
+          keyAlias=$CM_KEY_ALIAS
+          keyPassword=$CM_KEY_PASSWORD
+          EOF
+          echo "wrote app/android/key.properties (values not echoed)"
+
+      # appbundle, not apk: Play requires an AAB for new apps, and it lets Google
+      # generate per-device APKs. That matters here — a universal APK ships every
+      # ABI and every density to every phone, and this audience is on metered
+      # data and 32 GB devices.
+      - name: Build signed AAB
+        working_directory: app
+        script: |
+          set -e
+          flutter build appbundle --release \
+            --build-number=$BUILD_NUMBER \
+            --dart-define=NIMIT_REMOTE=$NIMIT_REMOTE \
+            --dart-define=SUPABASE_URL=$SUPABASE_URL \
+            --dart-define=SUPABASE_ANON_KEY=$SUPABASE_ANON_KEY
+
+    artifacts:
+      - app/build/app/outputs/bundle/release/*.aab
+      # Deobfuscation and native-symbol files. Without them a Play Console crash
+      # report from a release build is unreadable stack addresses, which is the
+      # worst time to discover you did not keep them.
+      - app/build/app/outputs/mapping/release/mapping.txt
+      - app/build/app/intermediates/merged_native_libs/**/*.so
+
+    # NO PUBLISHING BLOCK, ON PURPOSE.
+    #
+    # Automated Play upload needs a Google Cloud service account with Play
+    # Developer API access, and that cannot exist before the Play listing does.
+    # More to the point, a brand-new listing cannot be published by API at all:
+    # the first release goes through the Console, and a personal developer
+    # account created after Nov 2023 must first run a closed test with at least
+    # 12 testers for 14 continuous days before production access is granted.
+    #
+    # So for now the AAB is an artifact to download and upload by hand. Once the
+    # listing exists and a service account is configured, add:
+    #
+    #   publishing:
+    #     google_play:
+    #       credentials: $GCLOUD_SERVICE_ACCOUNT_CREDENTIALS
+    #       track: internal
+    #
+    # `track: internal` deliberately, not production — the same reasoning as
+    # TestFlight on the iOS side: find out what a real Thai user on a real budget
+    # phone experiences before a store listing does.

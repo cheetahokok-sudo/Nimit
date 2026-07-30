@@ -12,7 +12,12 @@
          running.
 
          This Theme is only used starting with V2 of Flutter's Android embedding. -->
+    <!-- Cream, not ?android:colorBackground. This colour sits BEHIND the Flutter
+         UI, so the system default (white here, black in values-night) shows in
+         every gap: during the handover from the splash, behind the keyboard as it
+         animates, and in the overscroll stretch. Cream makes those gaps
+         invisible; the system default makes them flash. -->
     <style name="NormalTheme" parent="@android:style/Theme.Light.NoTitleBar">
-        <item name="android:windowBackground">?android:colorBackground</item>
+        <item name="android:windowBackground">@color/nimit_cream</item>
     </style>
 </resources>
