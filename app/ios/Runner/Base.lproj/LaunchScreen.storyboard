@@ -19,7 +19,13 @@
                             <imageView opaque="NO" clipsSubviews="YES" multipleTouchEnabled="YES" contentMode="center" image="LaunchImage" translatesAutoresizingMaskIntoConstraints="NO" id="YRO-k0-Ey4">
                             </imageView>
                         </subviews>
-                        <color key="backgroundColor" red="1" green="1" blue="1" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
+                        <!-- NimitColors.cream (0xFFF6F0E4), the page background the
+                             first Flutter frame paints. Was pure white, which made
+                             every cold start flash white and then jump to cream.
+                             Keep these two in step: this file cannot import the
+                             palette, so app/test/launch_screen_test.dart asserts
+                             the numbers match. -->
+                        <color key="backgroundColor" red="0.96470588235294119" green="0.94117647058823528" blue="0.89411764705882357" alpha="1" colorSpace="custom" customColorSpace="sRGB"/>
                         <constraints>
                             <constraint firstItem="YRO-k0-Ey4" firstAttribute="centerX" secondItem="Ze5-6b-2t3" secondAttribute="centerX" id="1a2-6s-vTC"/>
                             <constraint firstItem="YRO-k0-Ey4" firstAttribute="centerY" secondItem="Ze5-6b-2t3" secondAttribute="centerY" id="4X2-HB-R7a"/>
